@@ -20,17 +20,7 @@ type Wire<HandWritten extends Generated, Generated> = HandWritten;
 export type UserSummaryMatchesTheWire = Wire<UserSummary, components['schemas']['UserSummary']>;
 export type RoleMatchesTheWire = Wire<Role, components['schemas']['Role']>;
 export type PermissionMatchesTheWire = Wire<Permission, components['schemas']['Permission']>;
-/**
- * `metadata` is exempt on purpose, and it is an upstream defect, not a preference: the contract
- * declares it as a bare `type: object`, which openapi-typescript reads as `Record<string, never>`,
- * while `AdminApi` reads it as the free-form JSON the API actually stores. The guard covers every
- * other field until `api/openapi.yaml` says `additionalProperties: true` there; the exemption goes
- * away with that contract change.
- */
-export type AuditEventMatchesTheWire = Wire<
-  Omit<AuditEvent, 'metadata'>,
-  Omit<components['schemas']['AuditEvent'], 'metadata'>
->;
+export type AuditEventMatchesTheWire = Wire<AuditEvent, components['schemas']['AuditEvent']>;
 
 /**
  * The list envelope is `Page<T>` here and `Page` in the contract, which carries only the counters;
