@@ -61,9 +61,11 @@ jobs:
         run: npx ng build
 
   # The API owns api/openapi.yaml and api/API.md, and this repository consumes a snapshot of them
-  # (see contract/ and scripts/sync-contract.sh). The snapshot alone would drift in silence, so
-  # this job checks it against the commit contract/UPSTREAM declares. It needs no dependencies and
-  # no sibling checkout, which is why it is a separate job instead of another step above.
+  # (see contract/). Two different guarantees are checked here, and one does not imply the other:
+  # that the snapshot is the contract of the commit contract/UPSTREAM declares, and that the
+  # committed generated types are the ones that snapshot produces. Together they stop drift in
+  # both directions. The job needs no workspace install and no sibling checkout, which is why it
+  # is separate from the job above.
   contract:
     name: contract
     runs-on: ubuntu-latest
@@ -73,25 +75,37 @@ jobs:
       - name: the sync script behaves
         run: bash scripts/sync-contract.test.sh
 
-      - name: read the upstream commit the snapshot declares
-        id: upstream
+      # Comparing the snapshot with the upstream file at the declared commit is the only check that
+      # catches a snapshot that is internally consistent and simply old: regenerating the types
+      # from a stale snapshot would be consistent and wrong.
+      - name: the snapshot is the contract of the commit UPSTREAM declares
         run: |
           commit="$(sed -n 's/^commit: //p' contract/UPSTREAM)"
-          # An empty ref would check out the API's default branch and compare against whatever is
-          # there, which is the silent drift this job exists to catch: fail loudly instead.
+          # Without this guard an empty ref would build a malformed URL, which fails with a 404
+          # rather than a clear reason — and a snapshot edited by hand would look like a network
+          # problem. Fail with the reason instead.
           if [ -z "$commit" ]; then
             echo 'contract/UPSTREAM declares no commit' >&2
             exit 1
           fi
-          echo "commit=$commit" >>"$GITHUB_OUTPUT"
+          base="https://raw.githubusercontent.com/ivvanare/ecosystem_complete/$commit"
+          for pair in openapi.yaml:contract/openapi.yaml API.md:contract/API.md; do
+            upstream="${pair%%:*}"
+            snapshot="${pair##*:}"
+            curl -fsS --max-time 60 "$base/api/$upstream" -o "/tmp/$upstream"
+            diff -u "/tmp/$upstream" "$snapshot"
+          done
 
-      - uses: actions/checkout@v7
+      # The generated file is committed, so regenerating it is the check: the same snapshot through
+      # the same pinned generator must produce the same bytes, or the change forgot to run the
+      # script. A caret or `latest` on the generator would move this diff without the contract
+      # having changed, which is why scripts/generate-api-client.sh refuses anything but a pinned
+      # version.
+      - uses: actions/setup-node@v7
         with:
-          repository: ivvanare/ecosystem_complete
-          ref: ${{ steps.upstream.outputs.commit }}
-          path: upstream
+          node-version: 24
 
-      - name: the snapshot is the contract of that commit
+      - name: the generated types are the ones the snapshot produces
         run: |
-          diff -u upstream/api/openapi.yaml contract/openapi.yaml
-          diff -u upstream/api/API.md contract/API.md
+          bash scripts/generate-api-client.sh
+          git diff --exit-code -- src/app/core/generated/api-types.ts

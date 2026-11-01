@@ -66,16 +66,22 @@ The API lives in `melia` (`api/`), and its contract is `api/openapi.yaml` + `api
 This repository consumes a **versioned snapshot** of it under `contract/`, never a submodule:
 
 ```bash
-scripts/sync-contract.sh <melia commit>   # refuses a checkout that is not at that commit
+scripts/sync-contract.sh <melia commit>       # refuses a checkout that is not at that commit
+scripts/generate-api-client.sh                # snapshot -> src/app/core/generated/api-types.ts
 ```
 
 - `contract/openapi.yaml` and `contract/API.md` are copies; `contract/UPSTREAM` names the `melia`
-  commit they came from. Commit the copy and the `UPSTREAM` together, always.
-- The `contract` CI job compares the snapshot against that declared commit; a snapshot edited by
-  hand, or an `UPSTREAM` left behind, is a red check.
+  commit they came from. Commit the copy, the `UPSTREAM` and the regenerated types together.
+- The `contract` CI job checks two things that do not imply each other: the snapshot matches the
+  declared commit (fetched from the API's repository, so a stale snapshot fails), and the committed
+  generated types are what that snapshot produces through the pinned generator.
+- The generated types describe the wire; the hand-written types in `AdminApi` stay the source of
+  truth for the logic. `src/app/core/wire-contract.ts` is the compile-time guard between them, so a
+  contract change that the hand-written types did not follow breaks the type check.
+- The generator version is pinned exactly in `package.json`; a caret would move the generated diff
+  without the contract having changed.
 - A field this SPA needs starts as a contract change in `melia` (`openapi.yaml` + `API.md` + its
-  contract test), never as a silent change here. The hand-written types in `AdminApi` and
-  `AdminTransport` are the source of truth until a generated client is decided.
+  contract test), never as a silent change here.
 
 Rules that matter here:
 
