@@ -1,21 +1,24 @@
 # melZone admin (SPA)
 
-Angular 22 admin panel for melZone: the public landing, the panel sign-in, and the
-backoffice screens. See `../../AGENTS.md` for the repository rules and the sibling
-`crud-maker` checkout this workspace links.
+Angular 22 admin SPA for melZone: the public landing, the registration and sign-in screens,
+password recovery, and the backoffice panel. See `AGENTS.md` for the repository rules and the
+sibling `crud-maker` checkout this workspace links. The API and the database live in the
+sibling repository `melia`.
 
 ## Routes
 
 | Route | Screen | Access |
 |-------|--------|--------|
 | `/` | Public landing | anonymous |
-| `/login` | Sign in (accounts are provisioned, never self-registered) | anonymous |
+| `/registro` | Two-step registration: details, then the six-digit code | anonymous |
+| `/login` | Sign in | anonymous |
+| `/recuperar` | Password recovery: email, then code + new password | anonymous |
 | `/no-access` | Signed in but without `admin.access` | session |
 | `/panel` | Overview: live totals, recent audit events, module status | `admin.access` |
-| `/panel/users` | Users, search, role assignment | `admin.access` |
+| `/panel/users` | Users, capability scope, edit, roles, invite, reset | `admin.access` |
 | `/panel/roles` | Roles and the permission catalogue | `admin.access` |
-| `/panel/audit` | Audit log, filter by exact event name | `admin.access` |
-| `/panel/account` | Profile and sign out | `admin.access` |
+| `/panel/audit` | Audit log, filters by event, user, email hash and date range | `admin.access` |
+| `/panel/account` | Profile, sign out, change email | `admin.access` |
 | `/panel/faqs` | `crud-maker` demo over a memory transport | `admin.access` |
 | `/panel/places`, `/panel/menus`, `/panel/reviews`, `/panel/routes` | "Coming soon" structure: no API yet | `admin.access` |
 | `/account`, `/faqs` | Redirect to the panel routes above | — |
@@ -45,5 +48,7 @@ npx ng test admin --watch=false
 npx ng build
 ```
 
-The dev build points at `http://localhost:9000/v1` through the `API_URL` injection
-token; `docker compose up -d` in the repository root starts the API and its services.
+The dev build points at `http://localhost:9000/v1` through the `API_URL` injection token.
+The services behind it (API, PostgreSQL, Redis, RabbitMQ, Mailpit) run from the `melia`
+repository: `docker compose up -d` there. Mailpit's UI is on `:8025` and is where the
+registration, recovery and invitation codes land in development.
