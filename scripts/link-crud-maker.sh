@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Point the panel's `link:` dependency at the crud-maker checkout it expects.
 #
-# This repository declares `crud-maker: link:../crud-maker/dist/crud-maker`, a path resolved
+# This repository declares `ng-crud-maker: link:../crud-maker/dist/crud-maker`, a path resolved
 # relative to the repository root: <repo-root>/../crud-maker. That is right for a clone
 # sitting beside crud-maker and wrong for every git worktree, whose root lives somewhere
 # else, so a worktree cannot install the panel until the expected path exists.

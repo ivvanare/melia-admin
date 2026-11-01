@@ -1,6 +1,6 @@
 import { Component, computed, inject } from '@angular/core';
-import { CrudController, defineCrudConfig } from 'crud-maker';
-import { CrudListScreen } from 'crud-maker-zorro';
+import { CrudController, defineCrudConfig } from 'ng-crud-maker';
+import { CrudListScreen } from 'ng-crud-maker-zorro';
 import { AdminTransport } from '../../core/admin-transport';
 
 /**

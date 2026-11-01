@@ -19,7 +19,7 @@ sibling repository `melia`.
 | `/panel/roles` | Roles and the permission catalogue | `admin.access` |
 | `/panel/audit` | Audit log, filters by event, user, email hash and date range | `admin.access` |
 | `/panel/account` | Profile, sign out, change email | `admin.access` |
-| `/panel/faqs` | `crud-maker` demo over a memory transport | `admin.access` |
+| `/panel/faqs` | `ng-crud-maker` demo over a memory transport | `admin.access` |
 | `/panel/places`, `/panel/menus`, `/panel/reviews`, `/panel/routes` | "Coming soon" structure: no API yet | `admin.access` |
 | `/account`, `/faqs` | Redirect to the panel routes above | — |
 
