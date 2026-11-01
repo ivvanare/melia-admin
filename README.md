@@ -29,10 +29,28 @@ API would answer with `403 permission_denied`.
 
 ## Session
 
-The panel uses the browser transport (`../../api/API.md` §2): the refresh token lives
+The panel uses the browser transport (`contract/API.md` §2): the refresh token lives
 in an httpOnly cookie, the CSRF value in `sessionStorage`, and the access token in
 memory only. `AuthService` rotates the session through one shared in-flight request,
 because the API revokes the whole family when a rotated token is replayed.
+
+## API contract
+
+The API owns its contract, and it lives in the `melia` repository. This repository consumes a
+**versioned snapshot** of it, never a submodule and never a live checkout:
+
+| Path | What it is |
+|------|------------|
+| `contract/openapi.yaml` | the contract, copied verbatim |
+| `contract/API.md` | the rules of behaviour, copied verbatim |
+| `contract/UPSTREAM` | the `melia` commit the copy came from, and the sync date |
+
+`scripts/sync-contract.sh <commit>` is the only manual step: it refuses a checkout that is not
+at that commit, copies both files, and rewrites `UPSTREAM`. Review the `contract/` diff and
+commit it with the sync. The `contract` CI job fails when the snapshot stops matching the commit
+`UPSTREAM` declares, so the copy cannot drift in silence. A field this SPA needs starts as a
+contract change in `melia` (`api/openapi.yaml` + `api/API.md` + its contract test), never as a
+silent change on this side.
 
 ## Design
 

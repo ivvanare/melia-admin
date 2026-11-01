@@ -21,8 +21,10 @@ src/app/
 ├── panel/       # layout, navigation catalogue, and one folder per screen
 ├── account/     # profile + change email
 └── core/        # AuthService, ThemeService, AdminApi, AdminTransport, guards, interceptor
+contract/        # versioned snapshot of the API contract; see "Backend contract" below
 design/          # static artboards; not part of the build
 public/
+scripts/         # the sibling link and the contract sync, each with its behavioural test
 ```
 
 ## Commands
@@ -61,6 +63,20 @@ cd ../crud-maker && pnpm install && pnpm exec ng build crud-maker && pnpm exec n
 ## Backend contract
 
 The API lives in `melia` (`api/`), and its contract is `api/openapi.yaml` + `api/API.md` **there**.
+This repository consumes a **versioned snapshot** of it under `contract/`, never a submodule:
+
+```bash
+scripts/sync-contract.sh <melia commit>   # refuses a checkout that is not at that commit
+```
+
+- `contract/openapi.yaml` and `contract/API.md` are copies; `contract/UPSTREAM` names the `melia`
+  commit they came from. Commit the copy and the `UPSTREAM` together, always.
+- The `contract` CI job compares the snapshot against that declared commit; a snapshot edited by
+  hand, or an `UPSTREAM` left behind, is a red check.
+- A field this SPA needs starts as a contract change in `melia` (`openapi.yaml` + `API.md` + its
+  contract test), never as a silent change here. The hand-written types in `AdminApi` and
+  `AdminTransport` are the source of truth until a generated client is decided.
+
 Rules that matter here:
 
 - Clients parse `error.code`, never `message`.
