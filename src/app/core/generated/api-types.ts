@@ -607,7 +607,14 @@ export interface components {
             country?: string | null;
             city?: string | null;
             user_agent?: string | null;
-            metadata?: Record<string, never> | null;
+            /**
+             * @description Free-form JSON whose shape depends on the event. Declared open on purpose: a bare
+             *     `object` reads as a closed empty record in generators, which is not what the API
+             *     stores.
+             */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
             /** Format: date-time */
             created_at: string;
         };
