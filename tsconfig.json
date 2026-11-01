@@ -12,11 +12,11 @@
     "target": "ES2022",
     "module": "preserve",
     "paths": {
-      "crud-maker": [
-        "./node_modules/crud-maker"
+      "ng-crud-maker": [
+        "./node_modules/ng-crud-maker"
       ],
-      "crud-maker-zorro": [
-        "./node_modules/crud-maker-zorro"
+      "ng-crud-maker-zorro": [
+        "./node_modules/ng-crud-maker-zorro"
       ]
     }
   },

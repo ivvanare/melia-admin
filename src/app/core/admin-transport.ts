@@ -8,13 +8,13 @@ import {
   type EntityId,
   type ListQuery,
   type ListResult,
-} from 'crud-maker';
+} from 'ng-crud-maker';
 import { API_URL } from './api-url.token';
 
 /**
  * `CrudTransport` over this API's dialect, for the screens the engine drives.
  *
- * `crud-maker`'s own `HttpTransport` speaks `perPage` and a `field_kind` filter
+ * `ng-crud-maker`'s own `HttpTransport` speaks `perPage` and a `field_kind` filter
  * grammar; this API speaks `page`/`limit`/`q` and a closed set of named filters
  * (`api/openapi.yaml`). The difference lives here instead of in the package, so the
  * adapter stays generic and the API stays the source of truth.

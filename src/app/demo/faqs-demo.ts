@@ -7,7 +7,7 @@ import {
   OptionResolver,
   type ResolvedCrudConfig,
   type ResolvedField,
-} from 'crud-maker';
+} from 'ng-crud-maker';
 import { FAQ_CATEGORIES_CONFIG, FAQ_CATEGORY_SEED, FAQS_CONFIG, FAQS_SEED } from './faqs.config';
 import { MemoryTransport } from './memory-transport';
 
@@ -28,7 +28,7 @@ const EMPTY_FORM: FaqForm = {
 };
 
 /**
- * Demo vertical proving the crud-maker base logic end-to-end without a
+ * Demo vertical proving the ng-crud-maker base logic end-to-end without a
  * backend or any UI-library dependency: JSON config → validated schema →
  * signal state → in-memory transport → plain HTML screen. The category
  * select is filled from a referenced endpoint (`faq_categories`) through

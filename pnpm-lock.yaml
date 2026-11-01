@@ -187,10 +187,10 @@ importers:
       '@ant-design/icons-angular':
         specifier: ^22.1.1
         version: 22.1.1(@angular/common@22.2.4(@angular/core@22.2.4(@angular/compiler@22.2.4)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@22.2.4(@angular/compiler@22.2.4)(rxjs@7.8.2))(@angular/platform-browser@22.2.4(@angular/common@22.2.4(@angular/core@22.2.4(@angular/compiler@22.2.4)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@22.2.4(@angular/compiler@22.2.4)(rxjs@7.8.2)))(rxjs@7.8.2)
-      crud-maker:
+      ng-crud-maker:
         specifier: link:../crud-maker/dist/crud-maker
         version: link:../crud-maker/dist/crud-maker
-      crud-maker-zorro:
+      ng-crud-maker-zorro:
         specifier: link:../crud-maker/dist/crud-maker-zorro
         version: link:../crud-maker/dist/crud-maker-zorro
       ng-zorro-antd:

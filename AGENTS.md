@@ -42,8 +42,9 @@ the CI job `admin` is what caught it.
 
 ## The `crud-maker` sibling
 
-`crud-maker` and `crud-maker-zorro` live in [`ivvanare/crud-maker`](https://github.com/ivvanare/crud-maker).
-Nothing is published yet, so both are `link:` dependencies pointing at a **sibling checkout**:
+`ng-crud-maker` and `ng-crud-maker-zorro` live in [`ivvanare/crud-maker`](https://github.com/ivvanare/crud-maker)
+and build to `dist/crud-maker` / `dist/crud-maker-zorro`. Nothing is published yet, so both are
+`link:` dependencies pointing at a **sibling checkout**:
 
 ```bash
 cd ../crud-maker && pnpm install && pnpm exec ng build crud-maker && pnpm exec ng build crud-maker-zorro

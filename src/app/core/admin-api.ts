@@ -78,7 +78,7 @@ export interface AuditQuery extends PageQuery {
 
 /**
  * The admin endpoints the panel uses, with this API's dialect. It exists because
- * `crud-maker`'s `HttpTransport` speaks a different one (`perPage` instead of
+ * `ng-crud-maker`'s `HttpTransport` speaks a different one (`perPage` instead of
  * `limit`, and a `field_kind` filter grammar this API does not have), and because
  * these entities are read-only here: role assignment is a replacement call, not
  * a generic update.

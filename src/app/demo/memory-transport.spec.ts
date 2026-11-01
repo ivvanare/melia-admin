@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { MemoryTransport } from './memory-transport';
-import type { ListQuery } from 'crud-maker';
+import type { ListQuery } from 'ng-crud-maker';
 
 const row = (id: number, question: string, views: number, published: boolean) => ({
   id,
