@@ -44,13 +44,23 @@ The API owns its contract, and it lives in the `melia` repository. This reposito
 | `contract/openapi.yaml` | the contract, copied verbatim |
 | `contract/API.md` | the rules of behaviour, copied verbatim |
 | `contract/UPSTREAM` | the `melia` commit the copy came from, and the sync date |
+| `src/app/core/generated/api-types.ts` | the wire types, generated from the snapshot and committed |
 
-`scripts/sync-contract.sh <commit>` is the only manual step: it refuses a checkout that is not
-at that commit, copies both files, and rewrites `UPSTREAM`. Review the `contract/` diff and
-commit it with the sync. The `contract` CI job fails when the snapshot stops matching the commit
-`UPSTREAM` declares, so the copy cannot drift in silence. A field this SPA needs starts as a
-contract change in `melia` (`api/openapi.yaml` + `api/API.md` + its contract test), never as a
-silent change on this side.
+`scripts/sync-contract.sh <commit>` is the only manual step for the contract: it refuses a
+checkout that is not at that commit, copies both files, and rewrites `UPSTREAM`. Review the
+`contract/` diff and commit it with the sync. Then run `scripts/generate-api-client.sh` and commit
+the regenerated types in the same change.
+
+The `contract` CI job proves two separate things, because one does not imply the other: the
+snapshot is the contract of the commit `UPSTREAM` declares (fetched from the API's repository), and
+the committed generated types are what that snapshot produces through the pinned generator. A field
+this SPA needs starts as a contract change in `melia` (`api/openapi.yaml` + `api/API.md` + its
+contract test), never as a silent change on this side.
+
+The generated types describe the **wire**; the hand-written types in `AdminApi` remain the source
+of truth for the logic. `src/app/core/wire-contract.ts` holds the compile-time guard that keeps each
+hand-written wire type assignable to its generated schema, so the two cannot drift apart quietly.
+Never merge both into one type: the traceability of which one rules is the point.
 
 ## Design
 
