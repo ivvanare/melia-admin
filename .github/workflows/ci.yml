@@ -59,3 +59,39 @@ jobs:
 
       - name: build
         run: npx ng build
+
+  # The API owns api/openapi.yaml and api/API.md, and this repository consumes a snapshot of them
+  # (see contract/ and scripts/sync-contract.sh). The snapshot alone would drift in silence, so
+  # this job checks it against the commit contract/UPSTREAM declares. It needs no dependencies and
+  # no sibling checkout, which is why it is a separate job instead of another step above.
+  contract:
+    name: contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: the sync script behaves
+        run: bash scripts/sync-contract.test.sh
+
+      - name: read the upstream commit the snapshot declares
+        id: upstream
+        run: |
+          commit="$(sed -n 's/^commit: //p' contract/UPSTREAM)"
+          # An empty ref would check out the API's default branch and compare against whatever is
+          # there, which is the silent drift this job exists to catch: fail loudly instead.
+          if [ -z "$commit" ]; then
+            echo 'contract/UPSTREAM declares no commit' >&2
+            exit 1
+          fi
+          echo "commit=$commit" >>"$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v7
+        with:
+          repository: ivvanare/ecosystem_complete
+          ref: ${{ steps.upstream.outputs.commit }}
+          path: upstream
+
+      - name: the snapshot is the contract of that commit
+        run: |
+          diff -u upstream/api/openapi.yaml contract/openapi.yaml
+          diff -u upstream/api/API.md contract/API.md
