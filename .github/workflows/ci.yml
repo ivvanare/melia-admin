@@ -1,0 +1,61 @@
+name: CI
+
+# The console shipped from the melia repository until the split; the job below is the one
+# that used to run there, unchanged in substance, with the working directory moved from
+# gui/admin to the repository root.
+on:
+  push:
+    branches: [dev, quality, prod]
+  pull_request:
+    branches: [dev, quality, prod]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  admin:
+    name: admin
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # Reads packageManager from package.json, so the pnpm version is declared in one place
+      # instead of a second copy here that drifts.
+      - uses: pnpm/action-setup@v6
+        with:
+          package_json_file: package.json
+
+      - uses: actions/setup-node@v7
+        with:
+          # Pinned to the version used locally; without it the runner image decides, and the
+          # Node version can change under a commit that touched nothing.
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      # The packages live in their own repository (github.com/ivvanare/crud-maker) and are
+      # linked from a sibling checkout, because nothing is published yet. package.json points
+      # at ../crud-maker/dist/..., relative to this repository root, so the sibling has to sit
+      # one directory beside the checkout — the same shape as a local working copy.
+      - name: check out the crud-maker packages beside the workspace
+        working-directory: ${{ github.workspace }}/..
+        run: git clone --depth 1 https://github.com/ivvanare/crud-maker crud-maker
+
+      - name: install and build the crud-maker packages
+        working-directory: ${{ github.workspace }}/../crud-maker
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm exec ng build crud-maker
+          pnpm exec ng build crud-maker-zorro
+
+      # --frozen-lockfile is the frontend's 'go mod tidy' gate: a lockfile that does not match
+      # package.json fails here instead of drifting silently.
+      - name: install
+        run: pnpm install --frozen-lockfile
+
+      - name: test the app
+        run: npx ng test admin --watch=false
+
+      - name: build
+        run: npx ng build
