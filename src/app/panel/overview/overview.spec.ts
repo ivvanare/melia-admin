@@ -14,7 +14,7 @@ const ME = {
   status: 'ACTIVE',
   email_verified_at: null,
   roles: ['SUPERADMIN'],
-  permissions: ['admin.access', 'user.read', 'role.manage', 'place.create'],
+  permissions: ['admin.access', 'user.read', 'role.manage', 'place.create', 'place.update'],
   created_at: '2026-01-01T00:00:00Z',
 };
 
@@ -84,9 +84,11 @@ describe('Overview', () => {
     expect(text).toContain('42'); // audit events
     expect(text).toContain('auth.login.failed');
     expect(text).toContain('Users');
-    // Places exists in the catalogue without an API, and says so.
+    // The module catalogue lists what this session may open. Places is keyed on
+    // `place.update`, the code an OWNER holds, so the fixture carries it too.
     expect(text).toContain('Places');
-    expect(text).toContain('Coming soon');
+    // Its screen runs on an in-memory store until the API exists, and says so.
+    expect(text).toContain('Mock data');
   });
 
   it('shows the API error code, never the message, when a total cannot load', async () => {

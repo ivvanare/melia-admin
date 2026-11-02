@@ -4,12 +4,14 @@
  * and not the other.
  *
  * `status` is honest about what exists today: `live` screens call the API,
- * `soon` screens render a structure with no backend behind them (S4). `permission`
- * is the code the screen needs; the panel is driven by `permissions`, never by
- * role names (`api/API.md` §6).
+ * `soon` screens render a structure with no backend behind them (S4), and
+ * `mock` screens render the real UI over an in-memory store while the API is
+ * built (Places, until place-ownership T1–T7 land). `permission` is the code
+ * the screen needs; the panel is driven by `permissions`, never by role names
+ * (`api/API.md` §6).
  */
 
-export type ModuleStatus = 'live' | 'soon';
+export type ModuleStatus = 'live' | 'soon' | 'mock';
 
 /** Keys of the single-path icons rendered by the panel templates. */
 export type ModuleIcon =
@@ -55,8 +57,10 @@ export const PANEL_GROUPS: readonly PanelGroup[] = [
         label: 'Places',
         description: 'Venue records, schedules and photos',
         icon: 'places',
-        status: 'soon',
-        permission: 'place.create',
+        // An OWNER holds `place.update`, never `place.create` (S2): keying the
+        // module on update is what lets an owner reach their venues at all.
+        status: 'mock',
+        permission: 'place.update',
       },
       {
         path: 'menus',

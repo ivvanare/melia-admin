@@ -8,8 +8,9 @@ import { authGuard } from './core/auth.guard';
  *
  * Screens load lazily so the landing stays a small first paint. Everything under
  * `/panel` shares `PanelLayout` (sidebar built from `permissions` + outlet); the
- * "coming soon" modules reuse one data-driven component instead of four
- * near-identical ones.
+ * "coming soon" modules that remain reuse one data-driven component instead of
+ * several near-identical ones. Places already renders for real, over an
+ * in-memory store, until `melia` ships its endpoints (place-ownership T1–T7).
  */
 export const routes: Routes = [
   {
@@ -79,17 +80,7 @@ export const routes: Routes = [
       {
         path: 'places',
         title: 'Places — melZone panel',
-        loadComponent: () => import('./panel/soon/soon').then((m) => m.Soon),
-        data: {
-          title: 'Places',
-          description: 'Venue records with schedules, photos and their social links.',
-          permission: 'place.create',
-          bullets: [
-            'Create and edit a venue, with its category and geo coordinates',
-            'Per-day schedules, including venues that cross midnight',
-            'One cover photo plus a gallery per venue',
-          ],
-        },
+        loadComponent: () => import('./panel/places/places').then((m) => m.Places),
       },
       {
         path: 'menus',
