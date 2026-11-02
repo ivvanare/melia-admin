@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1440">
+<title>melZone — sistema de diseño</title>
+<style>
+  :root {
+    --ink: #0b1220; --ink-2: #111c31; --nav: #0f1a2b; --nav-2: #16233a;
+    --canvas: #f5f7fa; --surface: #ffffff; --surface-muted: #fcfdfe; --surface-2: #f8fafc;
+    --slate: #475569; --muted: #64748b;
+    --line: #e3e8ef; --line-soft: #f0f3f8;
+    --accent: #4338ca; --accent-hover: #372fb0; --accent-soft: #eef0fe; --accent-ring: #8b87f8;
+    --teal: #0e7490; --ok: #047857; --warn: #b45309; --danger: #b91c1c;
+    --radius: 12px; --radius-sm: 9px; --radius-pill: 999px;
+    --shadow-sm: 0 1px 2px rgba(11, 18, 32, .06);
+    --shadow-lg: 0 34px 60px -46px rgba(11, 18, 32, .6);
+    --pill-bg: #eef1f6; --pill-ink: #5a6779;
+    --tag-ok-bg: #e9f5ee; --tag-ok-ink: #046c4e;
+    --tag-warn-bg: #fdf3e3; --tag-warn-ink: #8a5008;
+    --tag-info-bg: var(--accent-soft); --tag-info-ink: #3730a3;
+    --tag-neutral-bg: #eef1f6; --tag-neutral-ink: #5a6779;
+    --tag-danger-bg: #fdecec; --tag-danger-ink: #991b1b;
+    --alert-bg: #fdf3f3; --alert-line: #f3d2d2; --alert-ink: #8f1d1d; --alert-code-bg: #f7e3e3;
+    --on-accent: #ffffff;
+    --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--canvas); color: var(--ink);
+    font-family: var(--font-sans); font-size: 14px; line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3 { margin: 0; letter-spacing: -.02em; }
+  p { margin: 0; }
+  :focus-visible { outline: 3px solid var(--accent-ring); outline-offset: 2px; border-radius: 6px; }
+
+  .board { width: 1440px; margin: 0 auto; padding: 40px 48px 56px; }
+  .board > header { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; padding-bottom: 18px; border-bottom: 1px solid var(--line); }
+  .board h1 { font-size: 26px; font-weight: 700; }
+  .board header p { margin-top: 6px; color: var(--muted); font-size: 13px; max-width: 74ch; }
+  .board header code { font-family: var(--font-mono); font-size: 12px; background: var(--pill-bg); border-radius: 5px; padding: 1px 6px; color: var(--pill-ink); }
+
+  section { margin-top: 34px; }
+  section > h2 { font-size: 15px; font-weight: 700; }
+  section > p.note { margin-top: 3px; color: var(--muted); font-size: 12.5px; }
+
+  .grid { display: grid; gap: 12px; margin-top: 14px; }
+  .cols-4 { grid-template-columns: repeat(4, 1fr); }
+  .cols-3 { grid-template-columns: repeat(3, 1fr); }
+  .cols-2 { grid-template-columns: repeat(2, 1fr); }
+
+  .swatch { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow-sm); }
+  .swatch .chip { height: 54px; border-bottom: 1px solid var(--line); }
+  .swatch dl { margin: 0; padding: 9px 12px 11px; }
+  .swatch dt { font-size: 12px; font-weight: 650; }
+  .swatch dd { margin: 1px 0 0; font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
+  .swatch dd.use { font-family: var(--font-sans); font-size: 11px; color: var(--slate); margin-top: 4px; }
+
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; }
+
+  .type-row { display: flex; align-items: baseline; gap: 16px; padding: 9px 0; border-bottom: 1px solid var(--line-soft); }
+  .type-row:last-child { border-bottom: 0; }
+  .type-row .spec { flex: 0 0 210px; font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
+  .type-row .demo { flex: 1; }
+
+  table.tokens { width: 100%; border-collapse: collapse; }
+  table.tokens th, table.tokens td { text-align: left; padding: 8px 10px; font-size: 12.5px; border-bottom: 1px solid var(--line-soft); vertical-align: middle; }
+  table.tokens th { font-size: 10.5px; letter-spacing: .09em; text-transform: uppercase; color: #8592a6; font-weight: 700; background: var(--surface-muted); }
+  table.tokens tbody tr:last-child td { border-bottom: 0; }
+  table.tokens td.mono, table.tokens .mono { font-family: var(--font-mono); font-size: 11.5px; }
+
+  .bar { height: 10px; border-radius: 3px; background: var(--accent-soft); border: 1px solid #dcd9fb; }
+  .box-sample { background: var(--surface-muted); border: 1px dashed #cbd5e1; border-radius: 6px; height: 34px; }
+
+  .shadow-sample { height: 62px; border-radius: var(--radius); background: var(--surface); border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
+
+  /* components, copied from src/styles.css */
+  .tag { display: inline-flex; align-items: center; gap: 5px; border-radius: var(--radius-pill); padding: 2px 8px; font-size: 11px; font-weight: 650; line-height: 1.5; }
+  .tag.ok { background: var(--tag-ok-bg); color: var(--tag-ok-ink); }
+  .tag.warn { background: var(--tag-warn-bg); color: var(--tag-warn-ink); }
+  .tag.info { background: var(--tag-info-bg); color: var(--tag-info-ink); }
+  .tag.neutral { background: var(--tag-neutral-bg); color: var(--tag-neutral-ink); }
+  .tag.danger { background: var(--tag-danger-bg); color: var(--tag-danger-ink); }
+
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border-radius: var(--radius-sm); border: 1px solid transparent; padding: 8px 14px; font: inherit; font-size: 13px; font-weight: 650; cursor: pointer; transition: background .16s ease, border-color .16s ease, color .16s ease; }
+  .btn.primary { background: var(--accent); color: var(--on-accent); }
+  .btn.primary:hover { background: var(--accent-hover); }
+  .btn.secondary { background: var(--surface); border-color: var(--line); color: var(--ink); }
+  .btn.secondary:hover { border-color: #cbd5e1; }
+  .btn:disabled { cursor: not-allowed; opacity: .6; }
+
+  .pagehead { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin-bottom: 16px; }
+  .pagehead h1 { font-size: 22px; font-weight: 700; }
+  .pagehead p { margin-top: 4px; color: var(--muted); font-size: 13px; }
+
+  .toolbar { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+  .toolbar .field { display: grid; gap: 5px; font-size: 12px; color: var(--muted); flex: 1; min-width: 220px; max-width: 340px; }
+  .toolbar .field.narrow { max-width: 180px; }
+  .toolbar input, .toolbar select { font: inherit; font-size: 13px; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 8px 11px; }
+
+  .table-wrap { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+  .panel-table { width: 100%; border-collapse: collapse; }
+  .panel-table th, .panel-table td { text-align: left; padding: 9px 16px; font-size: 12.5px; border-bottom: 1px solid var(--line-soft); vertical-align: middle; }
+  .panel-table th { font-size: 10.5px; letter-spacing: .09em; text-transform: uppercase; color: #8592a6; font-weight: 700; background: var(--surface-muted); }
+  .panel-table tbody tr:last-child td { border-bottom: 0; }
+  .panel-table .mono { font-family: var(--font-mono); font-size: 11.5px; }
+  .panel-table .muted { color: var(--muted); }
+  .panel-table .actions { text-align: right; white-space: nowrap; }
+  .pager { display: flex; align-items: center; gap: 14px; margin-top: 14px; font-size: 12.5px; color: var(--muted); }
+
+  .alert { display: flex; align-items: center; justify-content: space-between; gap: 16px; border: 1px solid var(--alert-line); background: var(--alert-bg); border-radius: var(--radius); padding: 12px 14px; font-size: 13px; color: var(--alert-ink); }
+  .alert code { font-family: var(--font-mono); background: var(--alert-code-bg); border-radius: 5px; padding: 1px 6px; }
+
+  .theme-toggle { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: var(--radius-sm); border: 1px solid var(--line); background: var(--surface); color: var(--slate); cursor: pointer; }
+  .theme-toggle:hover { color: var(--ink); border-color: var(--accent); }
+
+  .footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="board">
+  <header>
+    <div>
+      <h1>melZone — sistema de diseño</h1>
+      <p>Tablero de referencia generado desde <code>src/styles.css</code>. Cada valor de acá existe en ese archivo; ninguno está inventado. Los componentes se copiaron literales para que sirva de comparación contra la app.</p>
+    </div>
+    <button class="theme-toggle" type="button" aria-label="Cambiar tema"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.6 6.6 0 0 0 9.8 9.8Z"/></svg></button>
+  </header>
+
+  <section>
+    <h2>Superficies y texto</h2>
+    <p class="note">El acento es índigo y es el único. Teal, esmeralda y ámbar quedan para estado, nunca para decoración.</p>
+    <div class="grid cols-4">
+      <div class="swatch"><div class="chip" style="background:#0b1220"></div><dl><dt>--ink</dt><dd>#0b1220</dd><dd class="use">texto primario · --canvas en oscuro</dd></dl></div>
+      <div class="swatch"><div class="chip" style="background:#111c31"></div><dl><dt>--ink-2</dt><dd>#111c31</dd><dd class="use">tinta secundaria</dd></dl></div>
+      <div class="swatch"><div class="chip" style="background:#f5f7fa"></div><dl><dt>--canvas</dt><dd>#f5f7fa</dd><dd class="use">fondo de página</dd></dl></div>
+      <div class="swatch"><div class="chip" style="background:#ffffff"></div><dl><dt>--surface</dt><dd>#ffffff</dd><dd class="use">tarjetas, tablas, inputs</dd></dl></div>
+      <div class="swatch"><div class="chip" style="background:#fcfdfe"></div><dl><dt>--surface-muted</dt><dd>#fcfdfe</dd><dd class="use">cabecera de tabla</dd></dl></div>
+      <div class="swatch"><div class="chip" style="background:#0f1a2b"></div><dl><dt>--nav</dt><dd>#0f1a2b</dd><dd class="use">sidebar</dd></dl></div>
+      <div class="swatch"><div class="chip" style="background:#16233a"></div><dl><dt>--nav-2</dt><dd>#16233a</dd><dd class="use">sidebar elevada</dd></dl></div>
+      <div class="swatch"><div class="chip" style="background:#eef1f6"></div><dl><dt>--pill-bg</dt><dd>#eef1f6</dd><dd class="use">píldora neutra</dd></dl></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Líneas, acento y estado</h2>
+    <p class="note">Un componente lee variables; nunca un hex literal. Por eso el tema oscuro sólo cambia tokens.</p>
+    <div class="grid cols-4">
+      <div class="swatch"><div class="chip" style="background:#e3e8ef"></div><dl><dt>--line</dt><dd>#e3e8ef</dd><dd class="use">bordes de 1px</dd></dl></div>
+      <div class="swatch"><div class="chip" style="background:#f0f3f8"></div><dl><dt>--line-soft</dt><dd>#f0f3f8</dd><dd class="use">separador de filas</dd></dl></div>
+      <div class="swatch"><div class="chip" style="background:#4338ca"></div><dl><dt>--accent</dt><dd>#4338ca</dd><dd class="use">botón primario, foco, nav activa</dd></dl></div>
+      <div class="swatch"><div class="chip" style="background:#372fb0"></div><dl><dt>--accent-hover</dt><dd>#372fb0</dd><dd class="use">hover del primario</dd></dl></div>
+      <div class="swatch"><div class="chip" style="background:#eef0fe"></div><dl><dt>--accent-soft</dt><dd>#eef0fe</dd><dd class="use">fondo de píldora info</dd></dl></div>
+      <div class="swatch"><div class="chip" style="background:#8b87f8"></div><dl><dt>--accent-ring</dt><dd>#8b87f8</dd><dd class="use">outline de foco, 3px</dd></dl></div>
+      <div class="swatch"><div class="chip" style="background:#047857"></div><dl><dt>--ok</dt><dd>#047857</dd><dd class="use">éxito</dd></dl></div>
+      <div class="swatch"><div class="chip" style="background:#b45309"></div><dl><dt>--warn</dt><dd>#b45309</dd><dd class="use">advertencia</dd></dl></div>
+      <div class="swatch"><div class="chip" style="background:#b91c1c"></div><dl><dt>--danger</dt><dd>#b91c1c</dd><dd class="use">destructivo</dd></dl></div>
+      <div class="swatch"><div class="chip" style="background:#0e7490"></div><dl><dt>--teal</dt><dd>#0e7490</dd><dd class="use">énfasis informativo</dd></dl></div>
+      <div class="swatch"><div class="chip" style="background:#64748b"></div><dl><dt>--muted</dt><dd>#64748b</dd><dd class="use">ayudas y subtítulos</dd></dl></div>
+      <div class="swatch"><div class="chip" style="background:#475569"></div><dl><dt>--slate</dt><dd>#475569</dd><dd class="use">texto secundario, iconos</dd></dl></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Tipografía</h2>
+    <p class="note">Sólo dos familias, ambas del sistema. Pesos en uso: 650 y 700. Ningún otro.</p>
+    <div class="card">
+      <div class="type-row"><span class="spec">22px / 700 · .pagehead h1</span><span class="demo" style="font-size:22px;font-weight:700;letter-spacing:-.02em">Usuarios del panel</span></div>
+      <div class="type-row"><span class="spec">14px / 400 · body</span><span class="demo">Un dueño de local administra la ficha de su lugar y nada más.</span></div>
+      <div class="type-row"><span class="spec">13px / 400 · .pagehead p</span><span class="demo" style="font-size:13px;color:var(--muted)">23 cuentas · los roles se reemplazan, nunca se mezclan</span></div>
+      <div class="type-row"><span class="spec">12.5px / 400 · .panel-table td</span><span class="demo" style="font-size:12.5px">Melia Centro · Arepera · ACTIVE</span></div>
+      <div class="type-row"><span class="spec">11.5px / 400 · .mono</span><span class="demo" style="font-family:var(--font-mono);font-size:11.5px">9f1c4a1e-0f0b-4d1c-9a3e-77bbf05d1f2c</span></div>
+      <div class="type-row"><span class="spec">11px / 650 · .tag</span><span class="demo"><span class="tag ok">ACTIVE</span></span></div>
+      <div class="type-row"><span class="spec">10.5px / 700 · th</span><span class="demo" style="font-size:10.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:#8592a6">Correo · Rol · Creado</span></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Forma, sombra y foco</h2>
+    <div class="grid cols-4">
+      <div class="card" style="padding:14px"><div class="box-sample" style="border-radius:12px;border-style:solid;background:var(--surface);border-color:var(--line)"></div><dl style="margin:9px 0 0"><dt style="font-size:12px;font-weight:650">--radius · 12px</dt><dd style="margin:0;font-family:var(--font-mono);font-size:11px;color:var(--muted)">tarjetas, tablas, alerts</dd></dl></div>
+      <div class="card" style="padding:14px"><div class="box-sample" style="border-radius:9px;border-style:solid;background:var(--surface);border-color:var(--line)"></div><dl style="margin:9px 0 0"><dt style="font-size:12px;font-weight:650">--radius-sm · 9px</dt><dd style="margin:0;font-family:var(--font-mono);font-size:11px;color:var(--muted)">botones, inputs, toggle</dd></dl></div>
+      <div class="card" style="padding:14px"><div class="box-sample" style="border-radius:999px;border-style:solid;background:var(--surface);border-color:var(--line)"></div><dl style="margin:9px 0 0"><dt style="font-size:12px;font-weight:650">--radius-pill · 999px</dt><dd style="margin:0;font-family:var(--font-mono);font-size:11px;color:var(--muted)">píldoras</dd></dl></div>
+      <div class="card" style="padding:14px"><div class="box-sample" style="border:3px solid var(--accent-ring);border-style:solid"></div><dl style="margin:9px 0 0"><dt style="font-size:12px;font-weight:650">foco · 3px / offset 2px</dt><dd style="margin:0;font-family:var(--font-mono);font-size:11px;color:var(--muted)">:focus-visible global</dd></dl></div>
+    </div>
+    <div class="grid cols-2" style="margin-top:12px">
+      <div class="shadow-sample" style="box-shadow:var(--shadow-sm)">--shadow-sm</div>
+      <div class="shadow-sample" style="box-shadow:var(--shadow-lg)">--shadow-lg</div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Botones y píldoras</h2>
+    <div class="grid cols-2">
+      <div class="card" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+        <button class="btn primary" type="button">Invitar usuario</button>
+        <button class="btn secondary" type="button">Cancelar</button>
+        <button class="btn primary" type="button" disabled>Enviando…</button>
+      </div>
+      <div class="card" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <span class="tag ok">ACTIVE</span>
+        <span class="tag warn">SUSPENDED</span>
+        <span class="tag info">admin.access</span>
+        <span class="tag neutral">sin rol</span>
+        <span class="tag danger">permission_denied</span>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Furniture de pantalla</h2>
+    <p class="note">Cabecera, barra de filtros, tabla y paginador: existen una vez y todas las pantallas del panel los reusan.</p>
+    <div class="card" style="padding:20px 20px 16px">
+      <div class="pagehead">
+        <div><h1>Places</h1><p>6 locales · 4 tuyos · los que no son tuyos no se editan</p></div>
+        <button class="btn primary" type="button">Nuevo place</button>
+      </div>
+      <div class="toolbar">
+        <label class="field">Buscar<input value="melia"></label>
+        <label class="field narrow">Estado<select><option>Activos</option></select></label>
+        <label class="field narrow">Alcance<select><option>Solo mis locales</option></select></label>
+      </div>
+      <div class="table-wrap">
+        <table class="panel-table">
+          <caption class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)">Locales</caption>
+          <thead><tr><th>Nombre</th><th>Categoría</th><th>Dueño</th><th>Estado</th><th class="actions">Acciones</th></tr></thead>
+          <tbody>
+            <tr><td>Melia Centro</td><td>Hotel</td><td class="mono">ana@melia.test</td><td><span class="tag ok">ACTIVE</span></td><td class="actions">Editar</td></tr>
+            <tr><td>Arepera El Parque</td><td>Arepera</td><td class="mono">—</td><td><span class="tag warn">SUSPENDED</span></td><td class="actions">Editar</td></tr>
+            <tr><td>Ruta del Café</td><td>Café</td><td class="muted">curado por la plataforma</td><td><span class="tag ok">ACTIVE</span></td><td class="actions muted">—</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="pager"><span>3 de 6</span><button class="btn secondary" type="button">Anterior</button><button class="btn secondary" type="button">Siguiente</button></div>
+      <div style="margin-top:16px">
+        <div class="alert"><span>La API rechazó el cambio: <code>place_not_owned</code></span><button class="btn secondary" type="button">Cerrar</button></div>
+      </div>
+    </div>
+  </section>
+
+  <p class="footer">design/system.html · generado desde <span style="font-family:var(--font-mono)">src/styles.css</span> · sin URLs externas, sin fuentes remotas, sin imágenes.</p>
+</div>
+</body>
+</html>

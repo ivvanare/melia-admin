@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "chosen": "03-card-grid-dialog.html",
+  "handoffs": {
+    "03-card-grid-dialog.html": {
+      "status": "implemented",
+      "queued": false,
+      "sentAt": "2026-11-02T14:29:44.033Z",
+      "startedAt": "2026-11-02T14:29:55.229Z",
+      "implementedAt": "2026-11-02T16:55:56.999Z",
+      "feature": "odd/tasks/place-ownership.md",
+      "note": "Places implemented on the real stack: card grid + two-column ng-zorro dialog, owner vs platform scope, in-memory store until the API lands. Suite 112/112, tsc and build green.",
+      "previewUrl": "http://localhost:4200/panel/places"
+    }
+  }
+}
