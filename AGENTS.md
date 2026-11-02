@@ -21,8 +21,10 @@ src/app/
 ├── panel/       # layout, navigation catalogue, and one folder per screen
 ├── account/     # profile + change email
 └── core/        # AuthService, ThemeService, AdminApi, AdminTransport, guards, interceptor
+contract/        # versioned snapshot of the API contract; see "Backend contract" below
 design/          # static artboards; not part of the build
 public/
+scripts/         # the sibling link and the contract sync, each with its behavioural test
 ```
 
 ## Commands
@@ -61,6 +63,26 @@ cd ../crud-maker && pnpm install && pnpm exec ng build crud-maker && pnpm exec n
 ## Backend contract
 
 The API lives in `melia` (`api/`), and its contract is `api/openapi.yaml` + `api/API.md` **there**.
+This repository consumes a **versioned snapshot** of it under `contract/`, never a submodule:
+
+```bash
+scripts/sync-contract.sh <melia commit>       # refuses a checkout that is not at that commit
+scripts/generate-api-client.sh                # snapshot -> src/app/core/generated/api-types.ts
+```
+
+- `contract/openapi.yaml` and `contract/API.md` are copies; `contract/UPSTREAM` names the `melia`
+  commit they came from. Commit the copy, the `UPSTREAM` and the regenerated types together.
+- The `contract` CI job checks two things that do not imply each other: the snapshot matches the
+  declared commit (fetched from the API's repository, so a stale snapshot fails), and the committed
+  generated types are what that snapshot produces through the pinned generator.
+- The generated types describe the wire; the hand-written types in `AdminApi` stay the source of
+  truth for the logic. `src/app/core/wire-contract.ts` is the compile-time guard between them, so a
+  contract change that the hand-written types did not follow breaks the type check.
+- The generator version is pinned exactly in `package.json`; a caret would move the generated diff
+  without the contract having changed.
+- A field this SPA needs starts as a contract change in `melia` (`openapi.yaml` + `API.md` + its
+  contract test), never as a silent change here.
+
 Rules that matter here:
 
 - Clients parse `error.code`, never `message`.

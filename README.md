@@ -29,10 +29,38 @@ API would answer with `403 permission_denied`.
 
 ## Session
 
-The panel uses the browser transport (`../../api/API.md` §2): the refresh token lives
+The panel uses the browser transport (`contract/API.md` §2): the refresh token lives
 in an httpOnly cookie, the CSRF value in `sessionStorage`, and the access token in
 memory only. `AuthService` rotates the session through one shared in-flight request,
 because the API revokes the whole family when a rotated token is replayed.
+
+## API contract
+
+The API owns its contract, and it lives in the `melia` repository. This repository consumes a
+**versioned snapshot** of it, never a submodule and never a live checkout:
+
+| Path | What it is |
+|------|------------|
+| `contract/openapi.yaml` | the contract, copied verbatim |
+| `contract/API.md` | the rules of behaviour, copied verbatim |
+| `contract/UPSTREAM` | the `melia` commit the copy came from, and the sync date |
+| `src/app/core/generated/api-types.ts` | the wire types, generated from the snapshot and committed |
+
+`scripts/sync-contract.sh <commit>` is the only manual step for the contract: it refuses a
+checkout that is not at that commit, copies both files, and rewrites `UPSTREAM`. Review the
+`contract/` diff and commit it with the sync. Then run `scripts/generate-api-client.sh` and commit
+the regenerated types in the same change.
+
+The `contract` CI job proves two separate things, because one does not imply the other: the
+snapshot is the contract of the commit `UPSTREAM` declares (fetched from the API's repository), and
+the committed generated types are what that snapshot produces through the pinned generator. A field
+this SPA needs starts as a contract change in `melia` (`api/openapi.yaml` + `api/API.md` + its
+contract test), never as a silent change on this side.
+
+The generated types describe the **wire**; the hand-written types in `AdminApi` remain the source
+of truth for the logic. `src/app/core/wire-contract.ts` holds the compile-time guard that keeps each
+hand-written wire type assignable to its generated schema, so the two cannot drift apart quietly.
+Never merge both into one type: the traceability of which one rules is the point.
 
 ## Design
 
