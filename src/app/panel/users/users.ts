@@ -1,6 +1,6 @@
 import { Component, computed, inject, signal } from '@angular/core';
-import { CrudController, defineCrudConfig } from 'crud-maker';
-import { CrudListScreen } from 'crud-maker-zorro';
+import { CrudController, defineCrudConfig } from 'ng-crud-maker';
+import { CrudListScreen } from 'ng-crud-maker-zorro';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzMessageService } from 'ng-zorro-antd/message';
 import { NzModalModule } from 'ng-zorro-antd/modal';

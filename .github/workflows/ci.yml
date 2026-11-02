@@ -1,0 +1,111 @@
+name: CI
+
+# The console shipped from the melia repository until the split; the job below is the one
+# that used to run there, unchanged in substance, with the working directory moved from
+# gui/admin to the repository root.
+on:
+  push:
+    branches: [dev, quality, prod]
+  pull_request:
+    branches: [dev, quality, prod]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  admin:
+    name: admin
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # Reads packageManager from package.json, so the pnpm version is declared in one place
+      # instead of a second copy here that drifts.
+      - uses: pnpm/action-setup@v6
+        with:
+          package_json_file: package.json
+
+      - uses: actions/setup-node@v7
+        with:
+          # Pinned to the version used locally; without it the runner image decides, and the
+          # Node version can change under a commit that touched nothing.
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      # The packages live in their own repository (github.com/ivvanare/crud-maker) and are
+      # linked from a sibling checkout, because nothing is published yet. package.json points
+      # at ../crud-maker/dist/..., relative to this repository root, so the sibling has to sit
+      # one directory beside the checkout — the same shape as a local working copy.
+      - name: check out the crud-maker packages beside the workspace
+        working-directory: ${{ github.workspace }}/..
+        run: git clone --depth 1 https://github.com/ivvanare/crud-maker crud-maker
+
+      - name: install and build the crud-maker packages
+        working-directory: ${{ github.workspace }}/../crud-maker
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm exec ng build crud-maker
+          pnpm exec ng build crud-maker-zorro
+
+      # --frozen-lockfile is the frontend's 'go mod tidy' gate: a lockfile that does not match
+      # package.json fails here instead of drifting silently.
+      - name: install
+        run: pnpm install --frozen-lockfile
+
+      - name: test the app
+        run: npx ng test admin --watch=false
+
+      - name: build
+        run: npx ng build
+
+  # The API owns api/openapi.yaml and api/API.md, and this repository consumes a snapshot of them
+  # (see contract/). Two different guarantees are checked here, and one does not imply the other:
+  # that the snapshot is the contract of the commit contract/UPSTREAM declares, and that the
+  # committed generated types are the ones that snapshot produces. Together they stop drift in
+  # both directions. The job needs no workspace install and no sibling checkout, which is why it
+  # is separate from the job above.
+  contract:
+    name: contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: the sync script behaves
+        run: bash scripts/sync-contract.test.sh
+
+      # Comparing the snapshot with the upstream file at the declared commit is the only check that
+      # catches a snapshot that is internally consistent and simply old: regenerating the types
+      # from a stale snapshot would be consistent and wrong.
+      - name: the snapshot is the contract of the commit UPSTREAM declares
+        run: |
+          commit="$(sed -n 's/^commit: //p' contract/UPSTREAM)"
+          # Without this guard an empty ref would build a malformed URL, which fails with a 404
+          # rather than a clear reason — and a snapshot edited by hand would look like a network
+          # problem. Fail with the reason instead.
+          if [ -z "$commit" ]; then
+            echo 'contract/UPSTREAM declares no commit' >&2
+            exit 1
+          fi
+          base="https://raw.githubusercontent.com/ivvanare/ecosystem_complete/$commit"
+          for pair in openapi.yaml:contract/openapi.yaml API.md:contract/API.md; do
+            upstream="${pair%%:*}"
+            snapshot="${pair##*:}"
+            curl -fsS --max-time 60 "$base/api/$upstream" -o "/tmp/$upstream"
+            diff -u "/tmp/$upstream" "$snapshot"
+          done
+
+      # The generated file is committed, so regenerating it is the check: the same snapshot through
+      # the same pinned generator must produce the same bytes, or the change forgot to run the
+      # script. A caret or `latest` on the generator would move this diff without the contract
+      # having changed, which is why scripts/generate-api-client.sh refuses anything but a pinned
+      # version.
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: the generated types are the ones the snapshot produces
+        run: |
+          bash scripts/generate-api-client.sh
+          git diff --exit-code -- src/app/core/generated/api-types.ts

@@ -2,7 +2,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import type { ListQuery } from 'crud-maker';
+import type { ListQuery } from 'ng-crud-maker';
 import { AdminTransport, toRfc3339 } from './admin-transport';
 import { API_URL } from './api-url.token';
 

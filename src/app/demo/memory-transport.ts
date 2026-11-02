@@ -8,7 +8,7 @@
  * Collections are keyed by endpoint so several entities (e.g. a resource and
  * the category list a select points at) share one transport instance.
  */
-import type { CrudTransport, EntityId, ListQuery, ListResult } from 'crud-maker';
+import type { CrudTransport, EntityId, ListQuery, ListResult } from 'ng-crud-maker';
 
 type Row = Record<string, unknown>;
 

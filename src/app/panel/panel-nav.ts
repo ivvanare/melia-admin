@@ -122,7 +122,7 @@ export const PANEL_GROUPS: readonly PanelGroup[] = [
       {
         path: 'faqs',
         label: 'FAQs demo',
-        description: 'crud-maker over a memory transport',
+        description: 'ng-crud-maker over a memory transport',
         icon: 'demo',
         status: 'live',
         permission: 'admin.access',

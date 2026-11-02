@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { ListQuery } from 'crud-maker';
+import type { ListQuery } from 'ng-crud-maker';
 import { AdminTransport } from '../../core/admin-transport';
 import { Audit } from './audit';
 

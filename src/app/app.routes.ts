@@ -71,7 +71,7 @@ export const routes: Routes = [
         loadComponent: () => import('./account/account').then((m) => m.Account),
       },
       {
-        // The existing crud-maker demo, now inside the panel's navigation.
+        // The existing ng-crud-maker demo, now inside the panel's navigation.
         path: 'faqs',
         title: 'FAQs demo — melZone panel',
         loadComponent: () => import('./demo/faqs-demo').then((m) => m.FaqsDemo),
