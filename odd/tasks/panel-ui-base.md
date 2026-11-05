@@ -137,3 +137,12 @@ Test runners: `npx ng test admin --watch=false`; `tsc --noEmit` for `tsconfig.ap
   rewrote `border-color` too, because `color: var(--accent)` matches inside `border-color`; caught by
   grepping for `-color: var(--accent-ink)` and reverted, so borders and checkbox accents use the fill
   while only text uses the ink.
+- **L16** (bug, cross-session): the landing session flagged that the panel's active sidebar row was still
+  violet, and it was: `rgba(139, 135, 248, …)` for the row, the same in rgba for its inset ring, and
+  `#a5a1ff` for the icon. The earlier "no stale palette" check grepped a list of hex literals and could
+  not see an `rgb()` triple, so a whole component survived the swap. Fixed with
+  `color-mix(in srgb, var(--accent) 18%, transparent)` and `var(--accent)` for the icon.
+  Second trap found in the same edit: `var(--ink)` is wrong for that row, because the sidebar is dark in
+  both themes and `--ink` flips to near-black on light; the label keeps a literal white with a comment
+  saying why. Lesson recorded: after a palette change, grep for the old colour in **every** notation
+  (hex, rgb, rgba, oklch), not in the list you happen to remember.
