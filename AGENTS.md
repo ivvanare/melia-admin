@@ -121,17 +121,22 @@ Facts that each cost a bug already:
   (longitude first, like GeoJSON). Swapping them yields a plausible, wrong map.
 - **Map clusters come from the server**, grouped in H3 cells. Do not enable MapLibre's own clustering:
   two clusterers means two answers to "how many venues are here".
-- **`sort=trending` currently degrades to `rating`** and answers `degraded: true`. Even once the ranking
-  producer exists, `degraded` is a valid per-zone state, not an error: a zone without ranking. Never
-  treat it as a failure, and do not tie copy to "trending" while it can silently be rating.
+- **`sort=trending` works, with a per-zone condition.** The ranking producer runs in the worker and
+  publishes per-zone rankings with a one-hour TTL, so `degraded: false` plus a numeric `trendingRank`
+  arrive when the zone has ranking. When `degraded` is true the sort fell back to `rating`: that is a
+  valid state for a zone without ranking, never an error. Show "trending" copy only when
+  `degraded === false`, or the panel would promise an ordering it did not get.
 - **Errors**: always `{"error":{"code","message","details"?}}`; parse `code`, never `message`. Validation
   is `422` with `details.fields[]` over a closed vocabulary (`required|invalid|too_short|too_long|unknown`).
   An unknown or inactive place is `404` on the review routes too.
-- **Moderating a review does not free the author's slot.** The partial unique index is
-  `WHERE dt_deleted_at IS NULL`, so a `MODERATED` review still blocks a new one from the same author
-  (`409 review_already_exists`). Pending decision Q7 in `melia`; if moderating also sets
-  `dt_deleted_at`, "moderate" and "withdraw" stop being the same action and the moderation screen must
-  offer both.
+- **Moderating a review frees the author's slot (Q7, decided).** The unique index now reads
+  `WHERE dt_deleted_at IS NULL AND tx_status = 'ACTIVE'` (`20-review-active-unique.sql`), so a
+  `MODERATED` review no longer blocks the author from reviewing that place again, and it stays visible
+  to the author marked as moderated. Consequences for the moderation screen: **one control**, changing
+  the status between `ACTIVE`, `INACTIVE` and `MODERATED` — not "moderate" plus "withdraw" as two
+  destructive actions, and the status is a label rather than a permanent punishment. Preventing
+  someone from publishing again is an account-level write block, a different feature. A second `ACTIVE`
+  review still answers `409 review_already_exists`.
 - **`GET /v1/admin/reviews` does not exist yet.** Moderation needs it to discover a `coReview`; it is
   planned with `status|placeId|authorId` filters. Do not build the screen before it lands.
 - **A running container may serve an older image than the code you read.** If a new filter returns `200`
