@@ -44,7 +44,7 @@ Test runners: `npx ng test admin --watch=false`; `tsc --noEmit` for `tsconfig.ap
 | T1 | S4, S7 | done | `<app-data-table>` + its spec: columns, rows, empty state, actions column, caption |
 | T2 | S5, S7 | done | Dialog shell component + its spec: lead, two columns, legends, both error slots |
 | T3 | S6 | done | Places renders its table view through `<app-data-table>` and its dialog through the shell |
-| T4 | S6 | dropped | Roles keeps its table: its status column is a tag, the fixed cell API cannot express one, and S8 forbids growing a per-cell escape hatch for a single screen. Recorded as a deliberate non-migration. Note: the tag variant added in T8 removed the colour blocker; what still stops Roles is its module group headers, not the pill |
+| T4 | S6 | done | Roles renders its catalogue through `<app-data-table>`: the module name travels as a `showModule` flag, so the table needed no group-header variant after all |
 | T5 | S3, S6 | done | Users' three dialogs move onto the shell, keeping their current fields and texts |
 | T6 | S6, S7 | done | `tsc` app + spec, full suite, `ng build` |
 | T7 | S2 | done | Record the forward rule where the next author will read it |
@@ -154,3 +154,13 @@ Test runners: `npx ng test admin --watch=false`; `tsc --noEmit` for `tsconfig.ap
   stays `#ff5a36` for marks, icons, links and gradients, where no label sits on it.
   Reverting `--on-accent` to white also fixed two Places captions that had become near-black on dark
   gradients when it was briefly `#111111`.
+- **L18** (delivered, parent): Roles migrated last, closing the convention. The blocker recorded in L5
+  turned out to be smaller than described: no group-header variant was needed, because the existing
+  screen also wrote the module name only on the first row of its group, and a value function returning
+  `''` reproduces that exactly. The tag variant added for Users covered the status column.
+  Because a refactor must not change behaviour, the order was inverted on purpose: a characterization
+  spec was written against the old markup and passed first (no RED to observe — there was no new
+  behaviour), then the table was replaced and the same spec stayed green. Verified: `tsc` app exit 0,
+  `ng test admin` **129 tests / 26 files green**, `ng build` green, and the only remaining `<table>` in
+  the panel is the base component itself (plus the `faqs` demo). Dead CSS from the removed markup went
+  with it.
