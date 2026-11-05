@@ -26,6 +26,10 @@
   --accent: #ff5a36;
   --accent-ink: #b52603;
   --accent-hover: #ff6b4a;
+  /* A fill that carries white text needs 4.5:1, which the brand coral (3.10) does not reach.
+     Its darker form keeps the label white and legal: 5.22:1. */
+  --accent-strong: #c9361a;
+  --accent-strong-hover: #a82c12;
   --accent-soft: #fff1ee;
   --accent-ring: #b52603;
 
@@ -63,7 +67,7 @@
   --alert-line: #f3d2d2;
   --alert-ink: #8f1d1d;
   --alert-code-bg: #f7e3e3;
-  --on-accent: #111111;
+  --on-accent: #ffffff;
 
   /* type */
   --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
@@ -180,12 +184,12 @@ button {
 }
 
 .btn.primary {
-  background: var(--accent);
+  background: var(--accent-strong);
   color: var(--on-accent);
 }
 
 .btn.primary:hover:not(:disabled) {
-  background: var(--accent-hover);
+  background: var(--accent-strong-hover);
 }
 
 .btn.secondary {
@@ -712,14 +716,14 @@ body .ant-select-item-option-selected:not(.ant-select-item-option-disabled) {
 
 /* Buttons: the vendor's primary blue would be a second accent in the same screen. */
 body .ant-btn.ant-btn-primary {
-  background: var(--accent);
-  border-color: var(--accent);
+  background: var(--accent-strong);
+  border-color: var(--accent-strong);
   color: var(--on-accent);
 }
 
 body .ant-btn.ant-btn-primary:not(:disabled):hover {
-  background: var(--accent-hover);
-  border-color: var(--accent-hover);
+  background: var(--accent-strong-hover);
+  border-color: var(--accent-strong-hover);
 }
 
 body .ant-btn.ant-btn-default {

@@ -253,7 +253,7 @@ button.primary {
   margin-top: 4px;
   border: 0;
   border-radius: 11px;
-  background: var(--accent);
+  background: var(--accent-strong);
   color: var(--on-accent);
   font-weight: 650;
   font-size: 14.5px;

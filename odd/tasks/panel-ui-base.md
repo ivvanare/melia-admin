@@ -146,3 +146,11 @@ Test runners: `npx ng test admin --watch=false`; `tsc --noEmit` for `tsconfig.ap
   both themes and `--ink` flips to near-black on light; the label keeps a literal white with a comment
   saying why. Lesson recorded: after a palette change, grep for the old colour in **every** notation
   (hex, rgb, rgba, oklch), not in the list you happen to remember.
+- **L17** (decision, user): the human rejected dark labels on a coral button — "para los btn con ese color
+  de fondo las letras negras no combina tiene que ser blancas". White on the brand coral is 3.10:1 and
+  fails AA, so the fill moved instead of the text: a new `--accent-strong: #c9361a` (5.22:1 with white)
+  and `--accent-strong-hover: #a82c12` (6.92:1) carry every fill that has a label on it — the panel's
+  `.btn.primary`, the ng-zorro primary, the three auth submits and the Places filter chip. `--accent`
+  stays `#ff5a36` for marks, icons, links and gradients, where no label sits on it.
+  Reverting `--on-accent` to white also fixed two Places captions that had become near-black on dark
+  gradients when it was briefly `#111111`.
