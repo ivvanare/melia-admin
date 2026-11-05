@@ -1,6 +1,7 @@
 <section class="screen">
-  <!-- Declared before the screen so the projection input sees the reference. -->
-  <ng-template #rolesAction let-row>
+  <!-- Declared before the table so the actions input sees the reference. -->
+  <ng-template #rowActions let-row>
+    <button nz-button nzSize="small" type="button" (click)="openProfile(row)">Edit</button>
     <button nz-button nzSize="small" type="button" (click)="openRoles(row)">Roles</button>
     <button
       nz-button
@@ -20,22 +21,75 @@
     </button>
   </ng-template>
 
-  <crud-list-screen
-    [config]="config"
-    [controller]="crud"
-    title="Users"
-    [subtitle]="subtitle()"
-    [rowActions]="rolesAction"
-    (edit)="openProfile($event)"
-  >
-    <button crudActions nz-button type="button" (click)="openInvite()">Invite user</button>
-  </crud-list-screen>
+  <div class="pagehead">
+    <div>
+      <h1>Users</h1>
+      <p>{{ subtitle() }}</p>
+    </div>
+    <button class="btn primary" type="button" (click)="openInvite()">Invite user</button>
+  </div>
+
+  @if (listErrorCode(); as code) {
+    <div class="alert" role="alert">
+      <span>Could not load the accounts: <code>{{ code }}</code></span>
+      <button class="btn secondary" type="button" (click)="load()">Try again</button>
+    </div>
+  }
 
   @if (resetErrorCode(); as code) {
-    <p class="save-error" role="alert">
-      The reset code could not be sent: <code>{{ code }}</code>
-    </p>
+    <div class="alert" role="alert">
+      <span>The reset code could not be sent: <code>{{ code }}</code></span>
+    </div>
   }
+
+  <div class="toolbar">
+    <label class="field">
+      Search
+      <input
+        type="search"
+        placeholder="Name or email"
+        [value]="search()"
+        (input)="search.set($any($event.target).value); apply()"
+      />
+    </label>
+
+    <label class="field narrow">
+      Status
+      <select [value]="statusFilter()" (change)="statusFilter.set($any($event.target).value); apply()">
+        <option value="">Any status</option>
+        @for (status of statuses; track status) {
+          <option [value]="status">{{ status }}</option>
+        }
+      </select>
+    </label>
+
+    <label class="field narrow">
+      Scope
+      <select [value]="scopeFilter()" (change)="scopeFilter.set($any($event.target).value); apply()">
+        @for (scope of scopes; track scope.value) {
+          <option [value]="scope.value">{{ scope.label }}</option>
+        }
+      </select>
+    </label>
+  </div>
+
+  <app-data-table
+    caption="Accounts with their status and roles"
+    [rows]="rows()"
+    [columns]="columns"
+    [empty]="emptyLabel()"
+    [rowActions]="rowActions"
+  />
+
+  <div class="pager">
+    <span>{{ rangeLabel() }}</span>
+    <button class="btn secondary" type="button" [disabled]="page() === 1" (click)="previous()">
+      Previous
+    </button>
+    <button class="btn secondary" type="button" [disabled]="page() >= pageCount()" (click)="next()">
+      Next
+    </button>
+  </div>
 
   <nz-modal
     [nzVisible]="rolesModalOpen()"

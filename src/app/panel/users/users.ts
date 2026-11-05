@@ -1,96 +1,94 @@
 import { Component, computed, inject, signal } from '@angular/core';
-import { CrudController, defineCrudConfig } from 'ng-crud-maker';
-import { CrudListScreen } from 'ng-crud-maker-zorro';
+import type { ListQuery } from 'ng-crud-maker';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzMessageService } from 'ng-zorro-antd/message';
 import { NzModalModule } from 'ng-zorro-antd/modal';
 import { AdminApi, type Role, type UserStatus, type UserSummary } from '../../core/admin-api';
 import { AdminTransport } from '../../core/admin-transport';
 import { apiErrorCode } from '../../core/api-error';
+import { DataTable, type DataTableColumn, type DataTableTagVariant } from '../../shared/data-table/data-table';
 import { DialogShell } from '../../shared/dialog-shell/dialog-shell';
 
-/**
- * The users entity as JSON-shaped config: the engine derives columns, search and
- * the status filter from it, and `admin/users` is the endpoint `AdminTransport`
- * knows how to speak. No create/update/delete: the API exposes none for users, so
- * every mutation here is the domain call below (`PATCH .../roles`).
- */
-const USERS_CONFIG = defineCrudConfig({
-  key: 'users',
-  endpoint: 'admin/users',
-  primaryKey: 'id',
-  titleField: 'email',
-  pageSize: 20,
-  searchFields: ['email', 'name'],
-  // `update: true` is what makes the table render its Edit button; the screen turns
-  // that event into the profile dialog. Creation and deletion stay out: accounts are
-  // invited, never created or deleted from here.
-  actions: { create: false, update: true, delete: false },
-  fields: [
-    // The primary key must be declared, but it is not a column.
-    { name: 'id', in: { list: false, form: false, detail: true } },
-    // Every field is unsortable on purpose: this API takes no sort parameter, so a
-    // sort affordance would change state and return the same order.
-    { name: 'name', label: 'Name', sortable: false },
-    { name: 'email', label: 'Email', type: 'email', sortable: false },
-    {
-      name: 'status',
-      label: 'Status',
-      sortable: false,
-      filters: ['eq'],
-      options: [
-        { label: 'Active', value: 'ACTIVE' },
-        { label: 'Inactive', value: 'INACTIVE' },
-        { label: 'Suspended', value: 'SUSPENDED' },
-      ],
-      cell: { render: 'tag', variantMap: { ACTIVE: 'green', INACTIVE: 'default', SUSPENDED: 'orange' } },
-    },
-    { name: 'roles', label: 'Roles', sortable: false },
-    {
-      // Not a column: the API answers `scope` from the roles' permissions, so it can
-      // only narrow the list. `detail: true` keeps the validator happy about having a
-      // view, while the flag stays out of the form.
-      name: 'scope',
-      label: 'Scope',
-      sortable: false,
-      in: { list: false, form: false, detail: true },
-      filters: ['eq'],
-      options: [
-        { label: 'Panel access', value: 'admin' },
-        { label: 'App users', value: 'app' },
-        { label: 'No role', value: 'none' },
-      ],
-    },
-    { name: 'created_at', label: 'Created', type: 'datetime', sortable: false },
-  ],
-});
+const PAGE_SIZE = 20;
+
+/** A status is a pill, and the pill's colour is the design system's decision, not this screen's. */
+const STATUS_TAG: Record<UserStatus, DataTableTagVariant> = {
+  ACTIVE: 'ok',
+  INACTIVE: 'neutral',
+  SUSPENDED: 'warn',
+};
+
+const SCOPES: readonly { label: string; value: string }[] = [
+  { label: 'All accounts', value: '' },
+  { label: 'Panel access', value: 'admin' },
+  { label: 'App users', value: 'app' },
+  { label: 'No role', value: 'none' },
+];
 
 /**
- * Users screen (S5): the listing, its search and its filter come from
- * `crud-list-screen`; the only thing written by hand is the domain action the
- * adapter cannot know about — replacing a user's role set.
+ * Users screen (S5): the listing, its search and its two filters.
+ *
+ * The API exposes no create, update or delete for an account, so nothing here pretends to: an
+ * account is invited, then its roles are replaced and its name and status are edited. Ownership of
+ * an address stays with its owner — an administrator never sets another person's password.
  */
 @Component({
   selector: 'app-users',
-  imports: [CrudListScreen, NzButtonModule, NzModalModule, DialogShell],
+  imports: [DataTable, DialogShell, NzButtonModule, NzModalModule],
   templateUrl: './users.html',
   styleUrl: './users.css',
 })
 export class Users {
   private readonly api = inject(AdminApi);
+  private readonly transport = inject(AdminTransport);
   private readonly messages = inject(NzMessageService);
 
-  protected readonly config = USERS_CONFIG;
-  protected readonly crud = new CrudController<UserSummary>(USERS_CONFIG, inject(AdminTransport));
+  protected readonly rows = signal<readonly UserSummary[]>([]);
+  protected readonly total = signal(0);
+  protected readonly page = signal(1);
+  protected readonly loading = signal(true);
+  protected readonly listErrorCode = signal<string | null>(null);
+
+  protected readonly search = signal('');
+  protected readonly statusFilter = signal('');
+  protected readonly scopeFilter = signal('');
+  protected readonly scopes = SCOPES;
+  protected readonly statuses: readonly UserStatus[] = ['ACTIVE', 'INACTIVE', 'SUSPENDED'];
+
+  protected readonly pageCount = computed(() => Math.max(1, Math.ceil(this.total() / PAGE_SIZE)));
+
+  protected readonly rangeLabel = computed(() => {
+    const total = this.total();
+    if (total === 0) return '0 of 0';
+    const start = (this.page() - 1) * PAGE_SIZE + 1;
+    return `${start}–${Math.min(this.page() * PAGE_SIZE, total)} of ${total}`;
+  });
 
   /**
-   * The header line reads the controller's `total` signal inside a `computed`, so it
-   * recomputes only when the total changes — never once per change-detection pass.
+   * The header line reads the total signal inside a `computed`, so it recomputes only when the
+   * total changes — never once per change-detection pass.
    */
   protected readonly subtitle = computed(() => {
-    const total = this.crud.total();
+    const total = this.total();
     return `${total} ${total === 1 ? 'account' : 'accounts'} · roles are replaced, never merged`;
   });
+
+  protected readonly emptyLabel = computed(() =>
+    this.loading() ? 'Loading accounts…' : 'No account matches these filters.',
+  );
+
+  protected readonly columns: readonly DataTableColumn<UserSummary>[] = [
+    { label: 'Name', value: (row) => row.name ?? '—' },
+    { label: 'Email', value: (row) => row.email ?? '—', variant: 'mono' },
+    {
+      label: 'Status',
+      tag: (row) => ({ label: row.status, variant: STATUS_TAG[row.status] }),
+    },
+    { label: 'Roles', value: (row) => (row.roles.length ? row.roles.join(', ') : 'no role') },
+    { label: 'Created', value: (row) => row.created_at.slice(0, 10), variant: 'muted' },
+  ];
+
+  // ---- dialogs ------------------------------------------------------------
 
   protected readonly roles = signal<readonly Role[]>([]);
   protected readonly editingUser = signal<UserSummary | null>(null);
@@ -102,7 +100,6 @@ export class Users {
   protected readonly profileStatus = signal<UserStatus>('ACTIVE');
   protected readonly profileSaving = signal(false);
   protected readonly profileErrorCode = signal<string | null>(null);
-  protected readonly statuses: readonly UserStatus[] = ['ACTIVE', 'INACTIVE', 'SUSPENDED'];
 
   protected readonly inviteModalOpen = signal(false);
   protected readonly inviteEmail = signal('');
@@ -110,10 +107,66 @@ export class Users {
   protected readonly inviting = signal(false);
   protected readonly inviteErrorCode = signal<string | null>(null);
 
+  protected readonly draftRoles = signal<readonly string[]>([]);
+  protected readonly saving = signal(false);
+  protected readonly saveErrorCode = signal<string | null>(null);
+
   /** Per-row feedback for the reset trigger: idle, sending, sent, or the API code. */
   protected readonly resettingId = signal<string | null>(null);
   protected readonly resetSentId = signal<string | null>(null);
   protected readonly resetErrorCode = signal<string | null>(null);
+
+  constructor() {
+    void this.load();
+    void this.loadRoles();
+  }
+
+  protected async load(): Promise<void> {
+    this.loading.set(true);
+    this.listErrorCode.set(null);
+    try {
+      // `status` and `scope` are the API's own filters; `q` searches name and email.
+      const query: ListQuery = {
+        page: this.page(),
+        pageSize: PAGE_SIZE,
+        // This API takes no sort parameter: a sort affordance would change state and return
+        // the same order.
+        sort: null,
+        search: this.search().trim(),
+        filters: {
+          status_eq: this.statusFilter(),
+          scope_eq: this.scopeFilter(),
+        },
+      };
+      const result = await this.transport.list('admin/users', query);
+      this.rows.set(result.rows as unknown as UserSummary[]);
+      this.total.set(result.total);
+    } catch (error) {
+      this.listErrorCode.set((error as { code?: string }).code ?? 'network_error');
+      this.rows.set([]);
+      this.total.set(0);
+    } finally {
+      this.loading.set(false);
+    }
+  }
+
+  /** A narrowed list must not stay on a page that no longer exists. */
+  protected apply(): void {
+    this.page.set(1);
+    void this.load();
+  }
+
+  protected previous(): void {
+    if (this.page() === 1) return;
+    this.page.update((page) => page - 1);
+    void this.load();
+  }
+
+  protected next(): void {
+    if (this.page() >= this.pageCount()) return;
+    this.page.update((page) => page + 1);
+    void this.load();
+  }
 
   protected openInvite(): void {
     this.inviteErrorCode.set(null);
@@ -169,14 +222,6 @@ export class Users {
       this.resettingId.set(null);
     }
   }
-  protected readonly draftRoles = signal<readonly string[]>([]);
-  protected readonly saving = signal(false);
-  protected readonly saveErrorCode = signal<string | null>(null);
-
-  constructor() {
-    void this.crud.load();
-    void this.loadRoles();
-  }
 
   protected openRoles(user: UserSummary): void {
     this.saveErrorCode.set(null);
@@ -223,7 +268,7 @@ export class Users {
         name: this.profileName().trim(),
         status: this.profileStatus(),
       });
-      await this.crud.load();
+      await this.load();
       this.closeProfile();
       this.messages.success('User updated');
     } catch (error) {
@@ -254,7 +299,7 @@ export class Users {
     this.saveErrorCode.set(null);
     try {
       await this.api.setUserRoles(user.id, [...this.draftRoles()]);
-      await this.crud.load();
+      await this.load();
       this.closeRoles();
       this.messages.success('Roles updated');
     } catch (error) {
