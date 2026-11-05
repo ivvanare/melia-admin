@@ -462,6 +462,71 @@ export interface paths {
         patch: operations["updateReview"];
         trace?: never;
     };
+    "/v1/admin/places": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List places in the backoffice
+         * @description Requires `place.update`. The result is scoped by ownership: a caller holding
+         *     `place.manage_all` sees every place; everybody else sees only the rows whose
+         *     `coOwnerUser` is their own account. Curated places (owner NULL) therefore belong to
+         *     the backoffice and are invisible to an owner-editor.
+         *
+         *     By default the live catalogue is listed; `status=DELETED` lists the retired rows
+         *     instead, because a logical delete has to remain inspectable.
+         */
+        get: operations["listAdminPlaces"];
+        put?: never;
+        /**
+         * Create a place
+         * @description Requires `place.manage_all`: operating the whole catalogue. `admin.access` would be too
+         *     wide, because the seeded EDITOR role already holds it — that permission means "may
+         *     enter the backoffice", not "may create catalogue entries". `coOwnerUser` assigns the
+         *     owner; omit it for a row the backoffice curates itself.
+         */
+        post: operations["createAdminPlace"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/places/{coPlace}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read one place
+         * @description Requires `place.update`. Scoped by ownership: a row the caller may not see answers
+         *     `404`, not `403`, because a caller who may not see a row must not learn it exists.
+         */
+        get: operations["getAdminPlace"];
+        put?: never;
+        post?: never;
+        /**
+         * Retire a place
+         * @description Requires `place.delete`. Logical: the row stays and the public read paths (discovery,
+         *     reviews, check-ins) stop serving it. Nothing is physically removed.
+         */
+        delete: operations["retireAdminPlace"];
+        options?: never;
+        head?: never;
+        /**
+         * Update a place
+         * @description Requires `place.update`. Partial: an absent field is left alone, and an explicit
+         *     `null` clears a nullable one. Only a caller with `admin.access` may reassign
+         *     `coOwnerUser` — ownership is not something an owner hands over.
+         */
+        patch: operations["updateAdminPlace"];
+        trace?: never;
+    };
     "/v1/admin/reviews": {
         parameters: {
             query?: never;
@@ -760,6 +825,60 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        AdminPlace: {
+            /** Format: uuid */
+            coPlace: string;
+            /**
+             * Format: uuid
+             * @description NULL for a place the backoffice curates itself.
+             */
+            coOwnerUser: string | null;
+            /** @description Legal name. Admin-only; never in public reads. */
+            name: string;
+            /** @description Commercial name shown in the app. */
+            title: string;
+            description: string | null;
+            category: {
+                /** Format: uuid */
+                id: string;
+                name: string;
+            };
+            country: string;
+            region: string | null;
+            timezone: string;
+            latitude: number;
+            longitude: number;
+            address: string | null;
+            /** @enum {string} */
+            status: "ACTIVE" | "INACTIVE" | "SUSPENDED";
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: date-time */
+            deletedAt: string | null;
+        };
+        AdminPlaceWrite: {
+            /**
+             * Format: uuid
+             * @description Only a caller with admin.access may set or change it.
+             */
+            coOwnerUser?: string | null;
+            name?: string;
+            title?: string;
+            description?: string | null;
+            /** Format: uuid */
+            coPlaceCategory?: string;
+            country?: string;
+            region?: string | null;
+            /** @description IANA name */
+            timezone?: string;
+            latitude?: number;
+            longitude?: number;
+            address?: string | null;
+            /** @enum {string} */
+            status?: "ACTIVE" | "INACTIVE";
+        };
         GraphMember: {
             /** Format: uuid */
             coUser: string;
@@ -1778,6 +1897,147 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Review"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    listAdminPlaces: {
+        parameters: {
+            query?: {
+                /** @description Case-insensitive substring of the commercial title. */
+                q?: string;
+                status?: "ACTIVE" | "INACTIVE" | "DELETED";
+                categoryId?: string;
+                country?: string;
+                region?: string;
+                page?: components["parameters"]["Page"];
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Page of places, newest first. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page"] & {
+                        data?: components["schemas"]["AdminPlace"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    createAdminPlace: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminPlaceWrite"];
+            };
+        };
+        responses: {
+            /** @description Created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminPlace"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    getAdminPlace: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                coPlace: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The place. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminPlace"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    retireAdminPlace: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                coPlace: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Retired. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateAdminPlace: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                coPlace: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminPlaceWrite"];
+            };
+        };
+        responses: {
+            /** @description Updated. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminPlace"];
                 };
             };
             400: components["responses"]["BadRequest"];

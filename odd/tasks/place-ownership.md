@@ -1,6 +1,6 @@
 # Design: place ownership and local-scoped administration
 
-Status: **decided, nothing implemented**. The four model questions that were open are settled below
+Status: **API half delivered at `5c8e8f63`; the SPA half is in progress**. The four model questions that were open are settled below
 (`D1`, `D3`, `D4`, review moderation) and converted into `S#` specs and a `T#` task table. The
 remaining `D#` entries are design analysis kept as the record of why.
 Objective: answer "an invitation is for what?", which cannot be answered until the panel knows what
@@ -316,3 +316,18 @@ Paused 2026-11-02. Nothing is pushed and no pull request exists.
 - **Outstanding proof:** no independent verification of the item-3 risk (the verifier was
   unavailable twice). A human review closed it. If the work resumes before any commit is reviewed,
   re-run `gentle-ai-verify` over the branch.
+- **L10** (delivery, API session): the whole backoffice of places landed at `5c8e8f63` on
+  `feat/api-place-ownership`, pushed, so T1-T7 are done on the API side: `GET/POST/PATCH/DELETE
+  /v1/admin/places` plus `GET /v1/admin/places/{coPlace}`, scoped by a `place.manage_all` permission
+  (migration 24) rather than by `admin.access` — an `EDITOR` holds `admin.access` and must not see the
+  whole catalogue. The snapshot is pinned there and the types are regenerated.
+  Four semantics the SPA must honour, all recorded here because each one changes the screen:
+  (a) scope is `place.manage_all`; (b) a row that is not yours answers **404**, deliberately, so the
+  catalogue cannot be enumerated by status code; (c) `coOwnerUser` is only honoured for
+  `place.manage_all`, and a caller without it is silently ignored rather than refused, so the UI must
+  not send it; (d) `status=DELETED` is a listing filter for logically retired rows, not a state of the
+  enum: it is the only way to see them, and a retired place leaves discovery, reviews and check-ins.
+- **L11** (finding, parent): `contract/openapi.yaml` describes `AdminPlaceWrite.coOwnerUser` with "Only a
+  caller with `admin.access` may set or change it", while `contract/API.md` §14 and the delivery note say
+  `place.manage_all`. The two disagree inside the same contract. The SPA follows `API.md`
+  (`place.manage_all`), and the provider should fix the schema description.

@@ -108,7 +108,7 @@ Rules that matter here:
 ## Discovery endpoints (in `melia`, not in `contract/` yet)
 
 The discovery and social routes are in `contract/`, pinned to a pushed commit of
-`feat/api-social-graph` (`5977b96`): `GET /v1/places` (list and map), the review routes,
+`feat/api-social-graph` (`5c8e8f63`): `GET /v1/places` (list and map), the review routes,
 `PATCH /v1/admin/reviews/{coReview}`, `/v1/follows` and the check-in route. The rule that matters when
 the API moves again: run `scripts/sync-contract.sh <commit>` only when that commit is **remote**, because
 the `contract` CI job fetches it from the API's repository; pinning an unpushed one turns the job red for
@@ -179,3 +179,18 @@ keep a commit about one thing, with its tests and docs, and never commit `dist/`
 
 Feature documents live in `odd/tasks/`. They arrived here with the SPA when it left the `melia`
 repository; the ones that describe the API's own work stayed there.
+
+## Places backoffice
+
+`/v1/admin/places` exists (`contract/API.md` §14) and the panel must speak it rather than a local store.
+The four rules that are easy to get wrong:
+
+- **Scope is `place.manage_all`**, never `admin.access`: an `EDITOR` holds `admin.access`, so gating on it
+  would hand an editor the whole catalogue. With the permission: full list, create, owner reassignment.
+  Without it: only the caller's own places, no create, no owner control.
+- **A row that is not yours answers `404`**, deliberately, so the catalogue cannot be enumerated by status
+  code. Copy must read "does not exist or is not yours" — never offer "request access".
+- **`coOwnerUser` is ignored, not refused**, for a caller without `place.manage_all`: the response comes
+  back unchanged and nothing errors. The UI must not send the field at all in that case.
+- **`status=DELETED` is a listing filter**, not a place status: it is the only way to see logically retired
+  rows, which then disappear from discovery, reviews and check-ins.
