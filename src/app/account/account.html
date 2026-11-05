@@ -28,6 +28,42 @@
 
     <button type="button" class="btn secondary" (click)="signOut()">Sign out</button>
 
+    <section class="panel" aria-labelledby="notifications">
+      <h2 id="notifications">Notifications</h2>
+      <p class="hint">
+        One switch per kind the system knows. An empty list means the catalogue could not be loaded,
+        not that everything is off: a kind without a stored preference is enabled.
+      </p>
+
+      @if (preferencesErrorCode(); as code) {
+        <p class="error" role="alert">Could not load the preferences: {{ code }}</p>
+      }
+
+      @if (preferencesLoading()) {
+        <p class="hint">Loading preferences…</p>
+      } @else if (preferences().length === 0) {
+        <p class="hint">No notification kind is available yet.</p>
+      } @else {
+        <ul class="preferences">
+          @for (preference of preferences(); track preference.kind) {
+            <li>
+              <label class="switch">
+                <input
+                  type="checkbox"
+                  role="switch"
+                  [attr.data-kind]="preference.kind"
+                  [checked]="preference.enabled"
+                  [disabled]="savingKind() !== null"
+                  (change)="togglePreference(preference, $any($event.target).checked, $any($event.target))"
+                />
+                <span>{{ preference.kind }}</span>
+              </label>
+            </li>
+          }
+        </ul>
+      }
+    </section>
+
     <section class="panel" aria-labelledby="email-change">
       <h2 id="email-change">Change email</h2>
 

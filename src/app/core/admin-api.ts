@@ -46,6 +46,16 @@ export interface PlaceCategory {
   status: 'ACTIVE' | 'INACTIVE';
 }
 
+/**
+ * One notification kind and whether it is on. The API returns the **whole catalogue**, so the
+ * screen renders a switch per entry instead of guessing which kinds exist. A missing row means
+ * enabled: nothing has to be seeded before the first visit.
+ */
+export interface NotificationPreference {
+  kind: string;
+  enabled: boolean;
+}
+
 export type AdminPlaceStatus = 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
 
 /**
@@ -256,6 +266,26 @@ export class AdminApi {
         `${this.baseUrl}/admin/users/${encodeURIComponent(userId)}/roles`,
         { roles },
       ),
+    );
+  }
+
+  /** The full notification catalogue for the signed-in account. */
+  async getNotificationPreferences(): Promise<NotificationPreference[]> {
+    const body = await firstValueFrom(
+      this.http.get<{ data: NotificationPreference[]; total: number }>(
+        `${this.baseUrl}/notifications/preferences`,
+      ),
+    );
+    return body.data;
+  }
+
+  /**
+   * Turns one kind on or off. An unknown kind is refused by the API rather than stored, which is
+   * why the screen only ever offers the kinds the catalogue returned.
+   */
+  setNotificationPreference(kind: string, enabled: boolean): Promise<void> {
+    return firstValueFrom(
+      this.http.patch<void>(`${this.baseUrl}/notifications/preferences`, { kind, enabled }),
     );
   }
 
