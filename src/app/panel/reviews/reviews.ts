@@ -1,5 +1,6 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { AdminApi, type AdminReview, type ReviewStatus } from '../../core/admin-api';
+import { AuthService } from '../../core/auth.service';
 import { DataTable, type DataTableColumn, type DataTableTagVariant } from '../../shared/data-table/data-table';
 
 const PAGE_SIZE = 20;
@@ -45,6 +46,7 @@ function stamp(value: string): string {
 })
 export class Reviews {
   private readonly api = inject(AdminApi);
+  private readonly auth = inject(AuthService);
 
   protected readonly rows = signal<readonly AdminReview[]>([]);
   protected readonly total = signal(0);
@@ -56,6 +58,18 @@ export class Reviews {
   protected readonly placeFilter = signal('');
   protected readonly authorFilter = signal('');
   protected readonly statuses = STATUSES;
+
+  /**
+   * Catalogue lookups for the filters. A filter must not ask a person for a uuid: when the session
+   * can list the table, the filter is a select; when it cannot, the field stays a text input rather
+   * than showing an empty select that would look like "there are none".
+   */
+  protected readonly canListPlaces = computed(() =>
+    this.auth.permissions().includes('place.update'),
+  );
+  protected readonly canListUsers = computed(() => this.auth.permissions().includes('user.read'));
+  protected readonly placeOptions = signal<readonly { id: string; label: string }[]>([]);
+  protected readonly authorOptions = signal<readonly { id: string; label: string }[]>([]);
 
   /** The row whose status is being written, so only that select is locked. */
   protected readonly savingId = signal<string | null>(null);
@@ -97,6 +111,34 @@ export class Reviews {
 
   constructor() {
     void this.load();
+    void this.loadCatalogues();
+  }
+
+  private async loadCatalogues(): Promise<void> {
+    if (this.canListPlaces()) {
+      try {
+        const page = await this.api.listAdminPlaces({ page: 1, limit: 50 });
+        this.placeOptions.set(
+          page.data.map((place) => ({ id: place.coPlace, label: place.title })),
+        );
+      } catch {
+        // No catalogue, no select: the filter falls back to the id.
+        this.placeOptions.set([]);
+      }
+    }
+    if (this.canListUsers()) {
+      try {
+        const page = await this.api.listUsers({ page: 1, limit: 50 });
+        this.authorOptions.set(
+          page.data.map((user) => ({
+            id: user.id,
+            label: user.name?.trim() || user.email || user.id,
+          })),
+        );
+      } catch {
+        this.authorOptions.set([]);
+      }
+    }
   }
 
   protected async load(): Promise<void> {

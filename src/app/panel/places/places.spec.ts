@@ -247,6 +247,26 @@ describe('Places', () => {
     );
   });
 
+  it('narrows the listing by category with a select fed by the catalogue', async () => {
+    const { element, fixture } = await render();
+
+    const select = element.querySelector<HTMLSelectElement>('#places-category')!;
+    expect(select.tagName).toBe('SELECT');
+    expect([...select.options].map((option) => option.value)).toContain(
+      CATEGORIES[1]!.coPlaceCategory,
+    );
+
+    select.value = CATEGORIES[1]!.coPlaceCategory;
+    select.dispatchEvent(new Event('change'));
+    await tick();
+    fixture.detectChanges();
+
+    expect(listAdminPlaces.mock.calls.at(-1)?.[0]).toMatchObject({
+      categoryId: CATEGORIES[1]!.coPlaceCategory,
+      page: 1,
+    });
+  });
+
   it('confirms before retiring a place, and only offers it with place.delete', async () => {
     const { element, fixture } = await render();
     await openFirst(element, fixture);
