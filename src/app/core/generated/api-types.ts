@@ -537,6 +537,167 @@ export interface paths {
         patch: operations["updatePlan"];
         trace?: never;
     };
+    "/v1/plans/{coRoute}/invitations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The host's RSVP view
+         * @description Requires `EDITOR` or `OWNER`. Every invitee's status, expiry and response time. An
+         *     invitee reads only their own, through `GET /v1/invitations`: who declined is not
+         *     community information.
+         */
+        get: operations["listPlanInvitations"];
+        put?: never;
+        /**
+         * Invite a registered person to a plan
+         * @description Requires `EDITOR` or `OWNER` of the plan; a non-member's invitation is rejected, not
+         *     dropped. Invitations address registered users only — there is no shareable token.
+         *
+         *     A `SURPRISE` invitation must carry at least one of `message` or `hint`: an empty envelope
+         *     is not a surprise. `expiresAt` must be in the future, and the read predicate treats any
+         *     `PENDING` row past its expiry as already unusable, whether or not a sweeper has run.
+         */
+        post: operations["inviteToPlan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/invitations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The caller's own invitations */
+        get: operations["listMyInvitations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/invitations/{coInvitation}/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Accept an invitation
+         * @description In one transaction the invitation flips to `ACCEPTED` and the membership is created as
+         *     `VIEWER` — never `EDITOR`. An expired, already answered or someone else's invitation is
+         *     `404`, all indistinguishable on purpose.
+         */
+        post: operations["acceptInvitation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/invitations/{coInvitation}/decline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Decline an invitation
+         * @description Terminal, and it creates no membership. Declining never reveals a SURPRISE plan.
+         */
+        post: operations["declineInvitation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/plans/{coRoute}/places": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The ordered itinerary of a plan
+         * @description Ordered by net votes descending, then the manual order, then creation time — so the
+         *     result is deterministic and reproducible. A member reads it; anyone reads it for a
+         *     PUBLIC plan. `myVote` is 0 when the caller has not voted.
+         */
+        get: operations["listPlanPlaces"];
+        put?: never;
+        /**
+         * Add or reorder a place in the plan
+         * @description Requires `EDITOR` or `OWNER`: a `VIEWER` reads and votes, it does not shape the
+         *     itinerary. Adding a place already in the plan updates its order.
+         */
+        post: operations["addPlanPlace"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/plans/{coRoute}/places/{coPlace}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove a place from the plan
+         * @description Requires `EDITOR` or `OWNER`. The votes for that place go with it, through the composite
+         *     foreign key.
+         */
+        delete: operations["removePlanPlace"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/plans/{coRoute}/places/{coPlace}/votes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Vote on a place in the plan
+         * @description Only a **member** may vote; a vote from a non-member is rejected with 403, never
+         *     silently dropped. A public plan lets a passer-by read, not vote — reading is open,
+         *     shaping is not. Voting again changes the vote (upsert), so a member has at most one vote
+         *     per place.
+         */
+        post: operations["votePlanPlace"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/plans/{coRoute}/members": {
         parameters: {
             query?: never;
@@ -944,6 +1105,70 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        Invitation: {
+            /** Format: uuid */
+            coInvitation: string;
+            /** Format: uuid */
+            coRoute: string;
+            /** Format: uuid */
+            coUser: string;
+            /** @enum {string} */
+            status: "PENDING" | "ACCEPTED" | "DECLINED" | "EXPIRED" | "REVOKED";
+            /** @enum {string} */
+            mode: "PLAIN" | "SURPRISE";
+            message: string | null;
+            hint: string | null;
+            /** Format: date-time */
+            expiresAt: string;
+            /**
+             * @description Whether the venue may be shown to the invitee (S26/D20). A PLAIN invitation never
+             *     hides anything; a SURPRISE one keeps the venue hidden until its rule fires — on
+             *     accept, or at the plan's scheduled time.
+             */
+            revealed?: boolean;
+            /**
+             * @description The read predicate's verdict: a PENDING invitation past its expiry is already
+             *     unusable, whether or not a sweeper ran.
+             */
+            expired: boolean;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            respondedAt: string | null;
+            inviteeName: string | null;
+            planName: string | null;
+            /** Format: date-time */
+            planScheduledAt: string | null;
+        };
+        InvitationWrite: {
+            /** Format: uuid */
+            coUser: string;
+            /** Format: date-time */
+            expiresAt: string;
+            /**
+             * @default PLAIN
+             * @enum {string}
+             */
+            mode: "PLAIN" | "SURPRISE";
+            message?: string | null;
+            hint?: string | null;
+        };
+        PlanPlace: {
+            /** Format: uuid */
+            coPlace: string;
+            title: string;
+            /** @description Manual order */
+            order: number;
+            /** @description Sum of up and down votes. */
+            netVotes: number;
+            /**
+             * @description 0 when the caller has not voted.
+             * @enum {integer}
+             */
+            myVote: -1 | 0 | 1;
+            /** Format: date-time */
+            createdAt: string;
+        };
         PlaceCategory: {
             /** Format: uuid */
             coPlaceCategory: string;
@@ -2210,6 +2435,249 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["Plan"];
                 };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    listPlanInvitations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                coRoute: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Invitations of the plan, newest first. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        total: number;
+                        data: components["schemas"]["Invitation"][];
+                    };
+                };
+            };
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    inviteToPlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                coRoute: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InvitationWrite"];
+            };
+        };
+        responses: {
+            /** @description Invitation created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Invitation"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    listMyInvitations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Only the caller's invitations. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        total: number;
+                        data: components["schemas"]["Invitation"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    acceptInvitation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                coInvitation: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Accepted; membership created. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    declineInvitation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                coInvitation: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Declined. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listPlanPlaces: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                coRoute: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The itinerary. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        total: number;
+                        data: components["schemas"]["PlanPlace"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    addPlanPlace: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                coRoute: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    coPlace: string;
+                    /** @default 1 */
+                    order?: number;
+                };
+            };
+        };
+        responses: {
+            /** @description Added or reordered. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    removePlanPlace: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                coRoute: string;
+                coPlace: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Removed. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    votePlanPlace: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                coRoute: string;
+                coPlace: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * @description -1 down, 1 up. There is no 0: not voting is having no row.
+                     * @enum {integer}
+                     */
+                    vote: -1 | 1;
+                };
+            };
+        };
+        responses: {
+            /** @description Vote recorded. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
