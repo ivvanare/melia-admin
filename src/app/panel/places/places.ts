@@ -2,6 +2,8 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzModalModule } from 'ng-zorro-antd/modal';
 import { AuthService } from '../../core/auth.service';
+import { DataTable, type DataTableColumn } from '../../shared/data-table/data-table';
+import { DialogShell } from '../../shared/dialog-shell/dialog-shell';
 import {
   PlacesStore,
   type Place,
@@ -48,7 +50,7 @@ interface Draft {
  */
 @Component({
   selector: 'app-places',
-  imports: [NzButtonModule, NzModalModule],
+  imports: [NzButtonModule, NzModalModule, DataTable, DialogShell],
   templateUrl: './places.html',
   styleUrl: './places.css',
 })
@@ -111,6 +113,15 @@ export class Places {
     return this.filtered().slice(start, start + PAGE_SIZE);
   });
 
+  /** Text columns keep the base table reusable; the card view retains the richer status tag. */
+  protected readonly tableColumns: readonly DataTableColumn<Place>[] = [
+    { label: 'Title', value: (place) => place.title },
+    { label: 'Category', value: (place) => place.category },
+    { label: 'Address', value: (place) => place.address ?? '—', variant: 'muted' },
+    { label: 'Owner', value: (place) => place.owner?.email ?? 'platform', variant: 'mono' },
+    { label: 'Status', value: (place) => place.status },
+  ];
+
   /** `1–6 de 9`: a range, so an empty list and a full last page both read honestly. */
   protected readonly rangeLabel = computed(() => {
     const total = this.total();
@@ -141,6 +152,18 @@ export class Places {
     const place = this.editing();
     const userId = this.auth.user()?.id;
     return place !== null && place.owner?.id === userId;
+  });
+
+  /** The shell takes text here so the modal's lead cannot become another markup escape hatch. */
+  protected readonly editingLead = computed(() => {
+    const place = this.editing();
+    if (!place) return '';
+    const suffix = this.editingIsMine()
+      ? ' · your venue'
+      : this.isPlatform()
+        ? ` · ${place.owner?.email ?? 'curated by the platform'}`
+        : '';
+    return `${place.id} · ${place.category}${suffix}`;
   });
 
   protected onSearch(value: string): void {
