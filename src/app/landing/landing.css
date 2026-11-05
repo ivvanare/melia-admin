@@ -112,7 +112,7 @@
 }
 
 .hero h1 span {
-  background: linear-gradient(90deg, #8b87f8, #4fd1c5);
+  background: linear-gradient(90deg, var(--accent), #4fd1c5);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -197,7 +197,7 @@
   display: grid;
   place-items: center;
   background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--accent-ink);
   margin-bottom: 14px;
 }
 

@@ -50,7 +50,7 @@ Test runners: `npx ng test admin --watch=false`; `tsc --noEmit` for `tsconfig.ap
 | T7 | S2 | done | Record the forward rule where the next author will read it |
 | T8 | S2, S6 | done | Users renders its rows through `<app-data-table>`, with its own query state (search, status, scope, paging, row actions) instead of `crud-list-screen` |
 | T10 | S7 | done | ng-zorro follows the panel's radius and surface tokens through a documented bridge layer, and the `--surface-2` dark gap is closed |
-| T11 | S7 | blocked | Replace the indigo accent with the landing's orange, and move `--warn` from amber to yellow. Waits for the exact token set from the landing session |
+| T11 | S7 | done | Accent replaced with Melia's coral `#FF5A36`, `--warn` moved to a colder yellow, and every accent-as-text usage now reads `--accent-ink` |
 | T9 | S2, S6 | done | Audit renders its rows through `<app-data-table>`, keeping the exact-event filter, the user and email-hash filters and the two `datetime-local` range inputs |
 
 ## Log
@@ -121,3 +121,19 @@ Test runners: `npx ng test admin --watch=false`; `tsc --noEmit` for `tsconfig.ap
   and a `#eef0fe` border in `src/styles.css`, `#8b87f8` in `src/app/landing/panel-preview.css`, and
   `#4338ca` in `src/app/demo/faqs-demo.css`. The dark theme needs `--on-accent` re-checked too: white on
   an orange is not automatically AA.
+- **L14** (measured, landing session): the coral is `#FF5A36`, hover `#E64825` or lighter `#FF6B4A`, soft
+  `#FFF1EE` with `#B52603` on it, focus ring `#B52603` (light) / `#FFB9A3` (dark). The decisive number:
+  **white on the coral is 3.10:1 and fails AA**, so the panel's primary buttons now carry dark text
+  (`--on-accent: #111111`, 6.09:1) instead of white. I re-measured every pair rather than trusting the
+  table: `#B52603` as text is 6.47 on white and 5.88 on the soft, the coral itself is 5.52 on the dark
+  surface (so dark keeps it) and `#FFB39C` is 9.93 there.
+- **L15** (delivered, parent): applied across 13 files. A new `--accent-ink` token exists because the
+  accent had been used as both fill and text, and only one of those is AA-safe; every `color:
+  var(--accent)` became `--accent-ink`. Hover is the lighter `#FF6B4A` (6.70:1 with dark text) rather
+  than the darker `#E64825` (4.78:1, tight margin). `--warn` is `#A16207` on light and `#FACC15` on
+  dark, with the warn pills at `#FEF9C3`/`#854D0E` and `rgba(234,179,8,.18)`/`#FDE047`. The literals
+  that would have survived the swap are gone: `#8b87f8` in the landing preview, `#4338ca` and
+  `#3730a3` in the demo, and the violet soft-chip border. Incident worth keeping: the first pass
+  rewrote `border-color` too, because `color: var(--accent)` matches inside `border-color`; caught by
+  grepping for `-color: var(--accent-ink)` and reverted, so borders and checkbox accents use the fill
+  while only text uses the ink.

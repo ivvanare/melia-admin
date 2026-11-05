@@ -30,7 +30,7 @@
 
 .viewtoggle button.on {
   background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 
 .toolbar .field {
@@ -168,7 +168,7 @@
   height: 16px;
   border-radius: 50%;
   background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--accent-ink);
   font-family: var(--font-sans);
   font-size: 9px;
   font-weight: 700;
@@ -201,7 +201,7 @@
 }
 
 .btn.ghost:hover {
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 
 .empty-state {

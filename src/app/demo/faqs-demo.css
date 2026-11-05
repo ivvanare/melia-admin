@@ -100,7 +100,7 @@ button.primary {
 }
 
 button.primary:hover:not(:disabled) {
-  background: #4338ca;
+  background: var(--accent);
 }
 
 button.danger {
@@ -279,7 +279,7 @@ tbody tr:hover {
 
 .chip[data-variant='indigo'] {
   background: #e0e7ff;
-  color: #3730a3;
+  color: var(--accent-ink);
 }
 
 .chip[data-variant='emerald'] {

@@ -76,7 +76,7 @@ h1 {
 .metric .link {
   font-size: 12px;
   font-weight: 650;
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 
 /* ---------- columns ---------- */
@@ -111,7 +111,7 @@ h1 {
 .panel .link {
   font-size: 12px;
   font-weight: 650;
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 
 .hint {
@@ -190,7 +190,7 @@ h1 {
   height: 22px;
   border-radius: 6px;
   background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--accent-ink);
   display: grid;
   place-items: center;
   flex: none;

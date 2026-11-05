@@ -92,7 +92,7 @@
 
 .pitch em {
   font-style: normal;
-  color: #8b87f8;
+  color: var(--accent-ink);
 }
 
 .lead {
@@ -292,7 +292,7 @@ button.primary:disabled {
 }
 
 .notice h2 svg {
-  color: var(--accent);
+  color: var(--accent-ink);
   flex: none;
 }
 

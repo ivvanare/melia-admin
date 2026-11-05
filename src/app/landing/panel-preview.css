@@ -51,7 +51,7 @@
 }
 
 .shot .side span.active {
-  background: #8b87f8;
+  background: var(--accent);
   width: 82%;
 }
 
@@ -103,7 +103,7 @@
 
 .shot .bars span {
   flex: 1;
-  background: linear-gradient(180deg, #8b87f8, var(--accent));
+  background: linear-gradient(180deg, var(--accent), var(--accent));
   border-radius: 4px 4px 0 0;
   opacity: 0.9;
 }

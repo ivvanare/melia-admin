@@ -126,7 +126,7 @@
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  background: linear-gradient(140deg, #8b87f8, #4fd1c5);
+  background: linear-gradient(140deg, var(--accent), #4fd1c5);
   display: grid;
   place-items: center;
   font-size: 11.5px;
