@@ -108,7 +108,7 @@ Rules that matter here:
 ## Discovery endpoints (in `melia`, not in `contract/` yet)
 
 The discovery and social routes are in `contract/`, pinned to a pushed commit of
-`feat/api-social-graph` (`f1203dd`): `GET /v1/places` (list and map), the review routes,
+`feat/api-social-graph` (`0aa2e7c3`): `GET /v1/places` (list and map), the review routes,
 `PATCH /v1/admin/reviews/{coReview}`, `/v1/follows` and the check-in route. The rule that matters when
 the API moves again: run `scripts/sync-contract.sh <commit>` only when that commit is **remote**, because
 the `contract` CI job fetches it from the API's repository; pinning an unpushed one turns the job red for
@@ -195,6 +195,20 @@ Two traps worth keeping: use the category's **`code`** as the stable key (the uu
 environments) while a place write still sends `coPlaceCategory`; and `place.title` is nullable, and the
 admin listing is no longer shaped like the public one — the public row keeps `viaFollowedAuthor` and has
 no `place`, the admin row has `place` and no `viaFollowedAuthor`.
+
+## Syncing the contract: pin against the tip, never a remembered SHA
+
+Before every sync, resolve the API's tip instead of reusing a SHA from a message or from memory:
+
+```bash
+git -C ../melia fetch origin dev && git -C ../melia rev-parse origin/dev
+```
+
+That SHA is the one to pin. A remembered SHA is how you end up building against a contract that already
+changed and then arguing about who is looking at stale data — it happened four times, and every time the
+stale side was the one holding the old pin. If the API checkout has uncommitted work, create a
+temporary worktree at the commit (`git worktree add --detach /tmp/x <sha>`, then `MELIA_SRC=...`) and
+remove it afterwards; never switch the API session's own checkout.
 
 ## Branches and commits
 

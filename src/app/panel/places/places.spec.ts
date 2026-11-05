@@ -461,7 +461,8 @@ describe('Places', () => {
     fixture.detectChanges();
 
     // The type travels as the form field the API documents, not as a query parameter.
-    expect(uploadPlacePhoto).toHaveBeenCalledWith('pl-1', file, 'COVER');
+    // The cover goes to the front; the order travels because the handler now honours it.
+    expect(uploadPlacePhoto).toHaveBeenCalledWith('pl-1', file, 'COVER', 0);
     const img = inDialog<HTMLImageElement>('.thumb img')[0]!;
     expect(img.getAttribute('src')).toBe('http://api.test/media/places/pl-1/a.jpg');
   });
@@ -509,6 +510,7 @@ describe('Places', () => {
     await tick();
     await tick();
 
+    expect(uploadPlacePhoto).toHaveBeenCalledWith('pl-1', file, 'GALLERY', 0);
     expect(deletePlacePhoto).toHaveBeenCalledWith('pl-1', 'ph2');
     expect(inDialog('.thumb')).toHaveLength(0);
   });

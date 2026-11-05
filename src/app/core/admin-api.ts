@@ -380,10 +380,13 @@ export class AdminApi {
     coPlace: string,
     file: File,
     type: 'COVER' | 'GALLERY' = 'GALLERY',
+    order = 0,
   ): Promise<PlacePhoto> {
     const body = new FormData();
     body.append('file', file);
     body.append('type', type);
+    // The handler honours this now; it used to accept it and write 0.
+    body.append('order', String(order));
     return firstValueFrom(
       this.http.post<PlacePhoto>(
         `${this.baseUrl}/admin/places/${encodeURIComponent(coPlace)}/photos`,

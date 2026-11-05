@@ -405,7 +405,13 @@ export class Places {
 
     this.uploading.set(true);
     try {
-      const photo = await this.api.uploadPlacePhoto(place.coPlace, file, type);
+      // A gallery photo goes last; a cover always sits at the front. Reordering existing photos
+      // still needs the bulk PUT the API has not shipped yet.
+      const order =
+        type === 'COVER'
+          ? 0
+          : this.photos().reduce((max, photo) => Math.max(max, photo.order), -1) + 1;
+      const photo = await this.api.uploadPlacePhoto(place.coPlace, file, type, order);
       // A new cover replaces the old one server-side, so the list has to agree.
       this.photos.update((photos) =>
         type === 'COVER'
