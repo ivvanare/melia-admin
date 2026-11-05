@@ -1,0 +1,47 @@
+<div class="table-wrap">
+  <table class="panel-table">
+    @if (caption()) {
+      <caption class="sr-only">{{ caption() }}</caption>
+    }
+    <thead>
+      <tr>
+        @for (column of columns(); track column) {
+          <th [class.left]="column.align === 'left'" [class.right]="column.align === 'right'">
+            {{ column.label }}
+          </th>
+        }
+        @if (rowActions()) {
+          <th class="actions">Actions</th>
+        }
+      </tr>
+    </thead>
+    <tbody>
+      @for (row of rows(); track $index) {
+        <tr>
+          @for (column of columns(); track column) {
+            <td
+              [class.muted]="column.variant === 'muted'"
+              [class.mono]="column.variant === 'mono'"
+              [class.left]="column.align === 'left'"
+              [class.right]="column.align === 'right'"
+            >
+              {{ column.value(row) }}
+            </td>
+          }
+          @if (rowActions(); as actions) {
+            <td class="actions">
+              <ng-container
+                [ngTemplateOutlet]="actions"
+                [ngTemplateOutletContext]="{ $implicit: row }"
+              />
+            </td>
+          }
+        </tr>
+      } @empty {
+        <tr>
+          <td class="empty" [attr.colspan]="colspan()">{{ empty() }}</td>
+        </tr>
+      }
+    </tbody>
+  </table>
+</div>
