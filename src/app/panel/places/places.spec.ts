@@ -72,6 +72,8 @@ describe('Places', () => {
   const createAdminPlace = vi.fn();
   const deleteAdminPlace = vi.fn();
   const listPlaceCategories = vi.fn();
+  const getPlaceSchedules = vi.fn();
+  const replacePlaceSchedules = vi.fn();
 
   const CATEGORIES = [
     { coPlaceCategory: '11111111-1111-4111-8111-111111111111', code: 'hotel', name: 'Hotel', status: 'ACTIVE' as const },
@@ -86,6 +88,10 @@ describe('Places', () => {
     createAdminPlace.mockReset().mockResolvedValue(PLACES[0]);
     deleteAdminPlace.mockReset().mockResolvedValue(undefined);
     listPlaceCategories.mockReset().mockResolvedValue(CATEGORIES);
+    getPlaceSchedules
+      .mockReset()
+      .mockResolvedValue([{ dayOfWeek: 1, open: '07:00', close: '22:00' }]);
+    replacePlaceSchedules.mockReset().mockResolvedValue(undefined);
 
     TestBed.configureTestingModule({
       imports: [Places],
@@ -105,6 +111,8 @@ describe('Places', () => {
             createAdminPlace,
             deleteAdminPlace,
             listPlaceCategories,
+            getPlaceSchedules,
+            replacePlaceSchedules,
             getAdminPlace: vi.fn(),
           },
         },
@@ -188,6 +196,8 @@ describe('Places', () => {
             createAdminPlace,
             deleteAdminPlace,
             listPlaceCategories,
+            getPlaceSchedules,
+            replacePlaceSchedules,
             getAdminPlace: vi.fn(),
           },
         },
@@ -265,6 +275,47 @@ describe('Places', () => {
       categoryId: CATEGORIES[1]!.coPlaceCategory,
       page: 1,
     });
+  });
+
+  it('loads the week and sends the whole set, dropping a disabled day', async () => {
+    const { element, fixture } = await render();
+    await openFirst(element, fixture);
+    await tick();
+    fixture.detectChanges();
+
+    expect(getPlaceSchedules).toHaveBeenCalledWith('pl-1');
+    // Monday was stored, so only Monday is enabled.
+    const toggles = [...inDialog<HTMLInputElement>('.day-toggle input')];
+    expect(toggles).toHaveLength(7);
+    expect(toggles[0]!.checked).toBe(true);
+    expect(toggles[1]!.checked).toBe(false);
+
+    // Open Tuesday too, then save: both days travel, the other five are omitted.
+    toggles[1]!.checked = true;
+    toggles[1]!.dispatchEvent(new Event('change'));
+    buttonIn(document.body, 'Save changes').click();
+    await tick();
+    await tick();
+
+    expect(replacePlaceSchedules).toHaveBeenCalledWith('pl-1', [
+      { dayOfWeek: 1, open: '07:00', close: '22:00' },
+      { dayOfWeek: 2, open: '09:00', close: '18:00' },
+    ]);
+  });
+
+  it('refuses a day whose opening and closing are the same time', async () => {
+    getPlaceSchedules.mockResolvedValue([{ dayOfWeek: 1, open: '09:00', close: '09:00' }]);
+    const { element, fixture } = await render();
+    await openFirst(element, fixture);
+    await tick();
+    fixture.detectChanges();
+
+    buttonIn(document.body, 'Save changes').click();
+    await tick();
+    fixture.detectChanges();
+
+    expect(replacePlaceSchedules).not.toHaveBeenCalled();
+    expect(inDialog<HTMLElement>('[role="alert"]')[0]!.textContent).toContain('same time');
   });
 
   it('confirms before retiring a place, and only offers it with place.delete', async () => {

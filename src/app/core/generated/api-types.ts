@@ -933,6 +933,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/admin/places/{coPlace}/schedules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The weekly hours of a place
+         * @description Requires `place.update`, scoped by ownership like the rest of the backoffice.
+         */
+        get: operations["getPlaceSchedules"];
+        /**
+         * Replace the weekly hours
+         * @description Replaces the whole set in one transaction. An operator edits "the hours of this place",
+         *     and a half-applied weekly set would answer "closed" for a day nobody touched.
+         *
+         *     A close time at or before the open time crosses midnight — how the model already says
+         *     "open 20:00, closes 02:00". Equal open and close times are rejected: that reads as
+         *     closed all day or open all day depending on who asks.
+         */
+        put: operations["replacePlaceSchedules"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/places/{coPlace}/attributes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The attribute codes present on a place */
+        get: operations["getPlaceAttributes"];
+        /**
+         * Replace the attributes of a place
+         * @description Replaces the whole set. A code the catalogue does not carry is `422` with field `codes`
+         *     and code `unknown`: silently dropping it would leave the operator believing an
+         *     attribute is set when the filter will never match it.
+         */
+        put: operations["replacePlaceAttributes"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admin/places/{coPlace}": {
         parameters: {
             query?: never;
@@ -1375,6 +1427,17 @@ export interface components {
              */
             scheduledAt?: string | null;
             partySize?: number;
+        };
+        PlaceSchedule: {
+            /** @description ISO-8601 */
+            dayOfWeek: number;
+            /** @example 20:00 */
+            open: string;
+            /**
+             * @description At or before `open` means it crosses midnight.
+             * @example 02:00
+             */
+            close: string;
         };
         AdminPlace: {
             /** Format: uuid */
@@ -3209,6 +3272,120 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    getPlaceSchedules: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                coPlace: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The weekly set. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        total: number;
+                        data: components["schemas"]["PlaceSchedule"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    replacePlaceSchedules: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                coPlace: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    schedules: components["schemas"]["PlaceSchedule"][];
+                };
+            };
+        };
+        responses: {
+            /** @description Replaced. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    getPlaceAttributes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                coPlace: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The codes. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        total: number;
+                        data: string[];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    replacePlaceAttributes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                coPlace: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    codes: string[];
+                };
+            };
+        };
+        responses: {
+            /** @description Replaced. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
             422: components["responses"]["ValidationError"];
         };
     };

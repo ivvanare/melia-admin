@@ -7,6 +7,7 @@ import type {
   Page,
   Permission,
   PlaceCategory,
+  PlaceSchedule,
   Role,
   UserSummary,
 } from './admin-api';
@@ -37,6 +38,10 @@ export type AdminPlaceMatchesTheWire = Wire<AdminPlace, components['schemas']['A
 export type AdminPlanMatchesTheWire = Wire<AdminPlan, components['schemas']['Plan']>;
 export type AdminInvitationMatchesTheWire = Wire<AdminInvitation, components['schemas']['Invitation']>;
 export type PlaceCategoryMatchesTheWire = Wire<PlaceCategory, components['schemas']['PlaceCategory']>;
+export type PlaceScheduleMatchesTheWire = Wire<
+  PlaceSchedule,
+  components['schemas']['PlaceSchedule']
+>;
 
 /**
  * The list envelope is `Page<T>` here and `Page` in the contract, which carries only the counters;

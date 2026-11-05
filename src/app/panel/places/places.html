@@ -360,6 +360,48 @@
             <p class="save-error" role="alert">{{ saveErrorMessage(code) }}</p>
           }
 
+          <fieldset>
+            <legend>Opening hours</legend>
+            <p class="hint">
+              The whole week is saved together: a day left off is a day the venue is closed. A
+              closing time at or before the opening one means the venue crosses midnight.
+            </p>
+
+            @if (schedulesLoading()) {
+              <p class="hint">Loading the week…</p>
+            } @else {
+              <div class="week">
+                @for (day of week(); track day.dayOfWeek) {
+                  <div class="day">
+                    <label class="day-toggle">
+                      <input
+                        type="checkbox"
+                        [checked]="day.enabled"
+                        [disabled]="saving()"
+                        (change)="patchDay(day.dayOfWeek, 'enabled', $any($event.target).checked)"
+                      />
+                      <span>{{ days[day.dayOfWeek - 1] }}</span>
+                    </label>
+                    <input
+                      class="dialog-input mono"
+                      type="time"
+                      [value]="day.open"
+                      [disabled]="saving() || !day.enabled"
+                      (input)="patchDay(day.dayOfWeek, 'open', $any($event.target).value)"
+                    />
+                    <input
+                      class="dialog-input mono"
+                      type="time"
+                      [value]="day.close"
+                      [disabled]="saving() || !day.enabled"
+                      (input)="patchDay(day.dayOfWeek, 'close', $any($event.target).value)"
+                    />
+                  </div>
+                }
+              </div>
+            }
+          </fieldset>
+
           @if (editing() && canDelete()) {
             <button class="btn danger" type="button" (click)="askDelete(editing()!)">
               Delete place

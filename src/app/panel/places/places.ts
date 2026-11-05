@@ -8,6 +8,7 @@ import {
   type AdminPlaceStatus,
   type AdminPlaceWrite,
   type PlaceCategory,
+  type PlaceSchedule,
 } from '../../core/admin-api';
 import { apiErrorCode } from '../../core/api-error';
 import { AuthService } from '../../core/auth.service';
@@ -32,6 +33,24 @@ const LIST_STATUSES: readonly { value: string; label: string }[] = [
   { value: 'DELETED', label: 'DELETED (retired)' },
 ];
 
+/** One editable day. `enabled` false means "closed that day", which is expressed by omission. */
+interface DayDraft {
+  dayOfWeek: number;
+  enabled: boolean;
+  open: string;
+  close: string;
+}
+
+const DAYS: readonly string[] = [
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+  'Sunday',
+];
+
 interface Draft {
   name: string;
   title: string;
@@ -46,6 +65,25 @@ interface Draft {
   address: string;
   status: AdminPlaceStatus;
   ownerId: string;
+}
+
+function emptyWeek(): DayDraft[] {
+  return DAYS.map((_, index) => ({
+    dayOfWeek: index + 1,
+    enabled: false,
+    open: '09:00',
+    close: '18:00',
+  }));
+}
+
+/** A stored set becomes a full week: a missing day is a closed day, and the form must say so. */
+function weekFrom(schedules: readonly PlaceSchedule[]): DayDraft[] {
+  return emptyWeek().map((day) => {
+    const stored = schedules.find((slot) => slot.dayOfWeek === day.dayOfWeek);
+    return stored
+      ? { ...day, enabled: true, open: stored.open.slice(0, 5), close: stored.close.slice(0, 5) }
+      : day;
+  });
 }
 
 function emptyDraft(): Draft {
@@ -119,6 +157,10 @@ export class Places {
   protected readonly listStatuses = LIST_STATUSES;
 
   protected readonly view = signal<'cards' | 'table'>('cards');
+
+  protected readonly days = DAYS;
+  protected readonly week = signal<readonly DayDraft[]>(emptyWeek());
+  protected readonly schedulesLoading = signal(false);
 
   /** The active taxonomy: the form offers a select instead of asking for a uuid. */
   protected readonly categories = signal<readonly PlaceCategory[]>([]);
@@ -274,9 +316,31 @@ export class Places {
   protected openEditor(place: AdminPlace): void {
     this.editing.set(place);
     this.draft.set(draftFrom(place));
+    this.week.set(emptyWeek());
     this.errors.set([]);
     this.saveErrorCode.set(null);
     this.editorOpen.set(true);
+    void this.loadSchedules(place.coPlace);
+  }
+
+  private async loadSchedules(coPlace: string): Promise<void> {
+    this.schedulesLoading.set(true);
+    try {
+      this.week.set(weekFrom(await this.api.getPlaceSchedules(coPlace)));
+    } catch {
+      // Without the stored week the editor would silently save "closed all week": keep it
+      // disabled and say so instead of guessing.
+      this.week.set(emptyWeek());
+      this.errors.set(['The opening hours could not be loaded, so they were left untouched.']);
+    } finally {
+      this.schedulesLoading.set(false);
+    }
+  }
+
+  protected patchDay(dayOfWeek: number, field: 'enabled' | 'open' | 'close', value: boolean | string): void {
+    this.week.update((week) =>
+      week.map((day) => (day.dayOfWeek === dayOfWeek ? { ...day, [field]: value } : day)),
+    );
   }
 
   protected closeEditor(): void {
@@ -293,7 +357,8 @@ export class Places {
   protected async save(): Promise<void> {
     if (this.saving()) return;
     const draft = this.draft();
-    const errors = validate(draft);
+    const week = this.week();
+    const errors = [...validate(draft), ...validateWeek(week)];
     this.errors.set(errors);
     if (errors.length > 0) return;
 
@@ -302,10 +367,19 @@ export class Places {
     const editing = this.editing();
     try {
       const body = toWrite(draft, this.canManageAll());
+      let coPlace = editing?.coPlace ?? '';
       if (editing) {
         await this.api.updateAdminPlace(editing.coPlace, body);
       } else {
-        await this.api.createAdminPlace(body);
+        coPlace = (await this.api.createAdminPlace(body)).coPlace;
+      }
+      // The whole set travels: a day left disabled is a day the venue is closed.
+      const defined = week.filter((day) => day.enabled);
+      if (defined.length > 0 || editing) {
+        await this.api.replacePlaceSchedules(
+          coPlace,
+          defined.map((day) => ({ dayOfWeek: day.dayOfWeek, open: day.open, close: day.close })),
+        );
       }
       await this.load();
       this.closeEditor();
@@ -420,4 +494,20 @@ function toWrite(draft: Draft, manageAll: boolean): AdminPlaceWrite {
     body.coOwnerUser = draft.ownerId === '' ? null : draft.ownerId;
   }
   return body;
+}
+
+/**
+ * Equal hours are rejected: the pair would read as "closed all day" or "open all day" depending on
+ * who asks. A `close` earlier than `open` is *not* an error — it is how a night that crosses
+ * midnight is written.
+ */
+function validateWeek(week: readonly DayDraft[]): readonly string[] {
+  const errors: string[] = [];
+  for (const day of week) {
+    if (!day.enabled) continue;
+    if (day.open === day.close) {
+      errors.push(`${DAYS[day.dayOfWeek - 1]}: opening and closing cannot be the same time.`);
+    }
+  }
+  return errors;
 }

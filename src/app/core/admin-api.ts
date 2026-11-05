@@ -34,6 +34,17 @@ export interface Role {
 }
 
 /** A place's own lifecycle, as the backoffice writes it. */
+/**
+ * One opening slot. `close` at or before `open` means the venue crosses midnight — "opens 20:00,
+ * closes 02:00" is a normal night, not an invalid range.
+ */
+export interface PlaceSchedule {
+  /** ISO-8601: 1 = Monday … 7 = Sunday. */
+  dayOfWeek: number;
+  open: string;
+  close: string;
+}
+
 export type PlanVisibility = 'PRIVATE' | 'PUBLIC';
 export type PlanStatus = 'ACTIVE' | 'INACTIVE';
 
@@ -314,6 +325,27 @@ export class AdminApi {
       this.http.patch<UserSummary>(
         `${this.baseUrl}/admin/users/${encodeURIComponent(userId)}/roles`,
         { roles },
+      ),
+    );
+  }
+
+  getPlaceSchedules(coPlace: string): Promise<PlaceSchedule[]> {
+    return firstValueFrom(
+      this.http.get<{ schedules: PlaceSchedule[] }>(
+        `${this.baseUrl}/admin/places/${encodeURIComponent(coPlace)}/schedules`,
+      ),
+    ).then((body) => body.schedules ?? []);
+  }
+
+  /**
+   * Replaces the **whole** weekly set: a day left out is a day the venue is closed. Sending a partial
+   * set is not a merge, so the caller must send every slot it means to keep.
+   */
+  async replacePlaceSchedules(coPlace: string, schedules: PlaceSchedule[]): Promise<void> {
+    await firstValueFrom(
+      this.http.put<void>(
+        `${this.baseUrl}/admin/places/${encodeURIComponent(coPlace)}/schedules`,
+        { schedules },
       ),
     );
   }
