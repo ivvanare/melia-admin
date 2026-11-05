@@ -462,6 +462,31 @@ export interface paths {
         patch: operations["updateReview"];
         trace?: never;
     };
+    "/v1/admin/reviews": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List reviews for moderation
+         * @description Requires `review.moderate`. Exists because the moderation route takes a `coReview`
+         *     and nothing else can discover one: a moderator needs a page to work from.
+         *
+         *     Unlike the public listing this does not apply the visibility predicate — it returns
+         *     every review, including moderated and logically deleted ones, newest first. Each
+         *     filter is optional; the zero value lists everything.
+         */
+        get: operations["listAdminReviews"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admin/reviews/{coReview}": {
         parameters: {
             query?: never;
@@ -1759,6 +1784,37 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    listAdminReviews: {
+        parameters: {
+            query?: {
+                status?: "ACTIVE" | "INACTIVE" | "MODERATED";
+                placeId?: string;
+                authorId?: string;
+                page?: components["parameters"]["Page"];
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Page of reviews, newest first. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page"] & {
+                        data?: components["schemas"]["Review"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             422: components["responses"]["ValidationError"];
         };
     };

@@ -108,7 +108,7 @@ Rules that matter here:
 ## Discovery endpoints (in `melia`, not in `contract/` yet)
 
 The discovery and social routes are in `contract/`, pinned to a pushed commit of
-`feat/api-social-graph` (`0b4a358`): `GET /v1/places` (list and map), the review routes,
+`feat/api-social-graph` (`5977b96`): `GET /v1/places` (list and map), the review routes,
 `PATCH /v1/admin/reviews/{coReview}`, `/v1/follows` and the check-in route. The rule that matters when
 the API moves again: run `scripts/sync-contract.sh <commit>` only when that commit is **remote**, because
 the `contract` CI job fetches it from the API's repository; pinning an unpushed one turns the job red for
@@ -137,9 +137,12 @@ Facts that each cost a bug already:
   destructive actions, and the status is a label rather than a permanent punishment. Preventing
   someone from publishing again is an account-level write block, a different feature. A second `ACTIVE`
   review still answers `409 review_already_exists`.
-- **`GET /v1/admin/reviews` does not exist yet.** Moderation needs it to discover a `coReview`; the API
-  session is writing it now with `status|placeId|authorId` filters. Do not build the screen before it
-  lands.
+- **`GET /v1/admin/reviews` exists** (`status|placeId|authorId`, page/limit, newest first, requires
+  `review.moderate`) and is the only way to discover a `coReview`. It deliberately **ignores the public
+  visibility predicate**: it returns moderated and logically deleted rows too, so the moderation screen
+  must show the state per row and must never filter client-side by "it does not appear". An out-of-enum
+  `status` is `422 validation_failed` with `field: status`, and a session without `review.moderate` gets
+  `403` before the service is reached.
 - **`viaFollowedAuthor` is per-viewer.** A review row carries it as `true` when the reader follows the
   author; an anonymous request gets `false`. Never cache it across users or use it as a cache key —
   it describes the session, not the row.
