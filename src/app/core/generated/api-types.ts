@@ -462,6 +462,56 @@ export interface paths {
         patch: operations["updateReview"];
         trace?: never;
     };
+    "/v1/admin/places/{coPlace}/menu": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The card of a place
+         * @description Sections in order, each with its items. A section with no items is a real state.
+         */
+        get: operations["getPlaceMenu"];
+        /**
+         * Replace the card
+         * @description Replaces the whole card in one transaction: a menu applied in halves would show a price
+         *     that the discovery filter reads and a customer never sees.
+         *
+         *     Every item needs a `currency` from the currency catalogue — a number without one does
+         *     not mean anything, which is why the model refuses it too. A negative price is `422`, not
+         *     a constraint violation, and an unknown currency is `422` with field `menus`.
+         */
+        put: operations["replacePlaceMenu"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/place-attributes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The attribute vocabulary
+         * @description Public taxonomy, like the category catalogue: the panel renders a select from it and the
+         *     mobile client renders the same list as discovery filters.
+         */
+        get: operations["listPlaceAttributes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/place-categories": {
         parameters: {
             query?: never;
@@ -1427,6 +1477,30 @@ export interface components {
              */
             scheduledAt?: string | null;
             partySize?: number;
+        };
+        PlaceMenu: {
+            /** @example Cena */
+            name: string;
+            description: string | null;
+            items: {
+                name: string;
+                description: string | null;
+                price: number;
+                /**
+                 * @description ISO-4217 code from the currency catalogue.
+                 * @example USD
+                 */
+                currency: string;
+            }[];
+        };
+        PlaceAttribute: {
+            /** Format: uuid */
+            coPlaceAttribute: string;
+            /** @example terraza */
+            code: string;
+            name: string;
+            /** @enum {string} */
+            status: "ACTIVE" | "INACTIVE";
         };
         PlaceSchedule: {
             /** @description ISO-8601 */
@@ -2533,6 +2607,86 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             422: components["responses"]["ValidationError"];
+        };
+    };
+    getPlaceMenu: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                coPlace: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The card. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        total: number;
+                        data: components["schemas"]["PlaceMenu"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    replacePlaceMenu: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                coPlace: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    menus: components["schemas"]["PlaceMenu"][];
+                };
+            };
+        };
+        responses: {
+            /** @description Replaced. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    listPlaceAttributes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The vocabulary, ordered by name. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        total: number;
+                        data: components["schemas"]["PlaceAttribute"][];
+                    };
+                };
+            };
         };
     };
     listPlaceCategories: {

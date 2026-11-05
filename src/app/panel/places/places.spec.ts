@@ -74,6 +74,16 @@ describe('Places', () => {
   const listPlaceCategories = vi.fn();
   const getPlaceSchedules = vi.fn();
   const replacePlaceSchedules = vi.fn();
+  const listPlaceAttributes = vi.fn();
+  const getPlaceAttributes = vi.fn();
+  const replacePlaceAttributes = vi.fn();
+  const getPlaceMenu = vi.fn();
+  const replacePlaceMenu = vi.fn();
+
+  const ATTRIBUTES = [
+    { coPlaceAttribute: '44444444-4444-4444-8444-444444444444', code: 'terraza', name: 'Terraza', status: 'ACTIVE' as const },
+    { coPlaceAttribute: '55555555-5555-4555-8555-555555555555', code: 'petfriendly', name: 'Pet friendly', status: 'ACTIVE' as const },
+  ];
 
   const CATEGORIES = [
     { coPlaceCategory: '11111111-1111-4111-8111-111111111111', code: 'hotel', name: 'Hotel', status: 'ACTIVE' as const },
@@ -92,6 +102,11 @@ describe('Places', () => {
       .mockReset()
       .mockResolvedValue([{ dayOfWeek: 1, open: '07:00', close: '22:00' }]);
     replacePlaceSchedules.mockReset().mockResolvedValue(undefined);
+    listPlaceAttributes.mockReset().mockResolvedValue(ATTRIBUTES);
+    getPlaceAttributes.mockReset().mockResolvedValue(['terraza']);
+    replacePlaceAttributes.mockReset().mockResolvedValue(undefined);
+    getPlaceMenu.mockReset().mockResolvedValue([]);
+    replacePlaceMenu.mockReset().mockResolvedValue(undefined);
 
     TestBed.configureTestingModule({
       imports: [Places],
@@ -113,6 +128,11 @@ describe('Places', () => {
             listPlaceCategories,
             getPlaceSchedules,
             replacePlaceSchedules,
+            listPlaceAttributes,
+            getPlaceAttributes,
+            replacePlaceAttributes,
+            getPlaceMenu,
+            replacePlaceMenu,
             getAdminPlace: vi.fn(),
           },
         },
@@ -198,6 +218,11 @@ describe('Places', () => {
             listPlaceCategories,
             getPlaceSchedules,
             replacePlaceSchedules,
+            listPlaceAttributes,
+            getPlaceAttributes,
+            replacePlaceAttributes,
+            getPlaceMenu,
+            replacePlaceMenu,
             getAdminPlace: vi.fn(),
           },
         },
@@ -316,6 +341,48 @@ describe('Places', () => {
 
     expect(replacePlaceSchedules).not.toHaveBeenCalled();
     expect(inDialog<HTMLElement>('[role="alert"]')[0]!.textContent).toContain('same time');
+  });
+
+  it('offers the attribute vocabulary and sends the chosen codes whole', async () => {
+    const { element, fixture } = await render();
+    await openFirst(element, fixture);
+    await tick();
+    fixture.detectChanges();
+
+    expect(listPlaceAttributes).toHaveBeenCalledWith('ACTIVE');
+    const boxes = [...inDialog<HTMLInputElement>('.attr input')];
+    expect(boxes).toHaveLength(ATTRIBUTES.length);
+    // The stored code is already on.
+    expect(boxes[0]!.checked).toBe(true);
+
+    boxes[1]!.checked = true;
+    boxes[1]!.dispatchEvent(new Event('change'));
+    buttonIn(document.body, 'Save changes').click();
+    await tick();
+    await tick();
+
+    expect(replacePlaceAttributes).toHaveBeenCalledWith('pl-1', ['terraza', 'petfriendly']);
+  });
+
+  it('sends the whole menu, and accepts a section with no dishes', async () => {
+    getPlaceMenu.mockResolvedValue([
+      { name: 'Cena', description: null, items: [{ name: 'Arepa', description: null, price: 4.5, currency: 'USD' }] },
+      { name: 'Postres', description: null, items: [] },
+    ]);
+    const { element, fixture } = await render();
+    await openFirst(element, fixture);
+    await tick();
+    fixture.detectChanges();
+
+    buttonIn(document.body, 'Save changes').click();
+    await tick();
+    await tick();
+
+    // The empty section survives: a menu loaded without dishes is a real state, not an error.
+    expect(replacePlaceMenu).toHaveBeenCalledWith('pl-1', [
+      { name: 'Cena', description: null, items: [{ name: 'Arepa', description: null, price: 4.5, currency: 'USD' }] },
+      { name: 'Postres', description: null, items: [] },
+    ]);
   });
 
   it('confirms before retiring a place, and only offers it with place.delete', async () => {

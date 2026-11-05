@@ -240,3 +240,59 @@
 .day-toggle input {
   accent-color: var(--accent-strong);
 }
+
+/* Attributes are a fixed vocabulary: checkboxes, two per row, with the code as reference. */
+.attr-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 12px;
+  margin-top: 8px;
+}
+
+.attr {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+  color: var(--slate);
+}
+
+.attr input {
+  accent-color: var(--accent-strong);
+}
+
+.attr code {
+  margin-left: auto;
+  font-size: 10.5px;
+  color: var(--muted);
+}
+
+.menus {
+  display: grid;
+  gap: 12px;
+  margin: 8px 0 10px;
+}
+
+.menu-section {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 10px;
+  display: grid;
+  gap: 8px;
+  background: var(--surface-muted);
+}
+
+.menu-head,
+.dish {
+  display: grid;
+  gap: 6px;
+  align-items: center;
+}
+
+.menu-head {
+  grid-template-columns: 1fr auto;
+}
+
+.dish {
+  grid-template-columns: 1fr 84px 84px auto;
+}

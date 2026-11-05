@@ -6,7 +6,9 @@ import type {
   AuditEvent,
   Page,
   Permission,
+  PlaceAttribute,
   PlaceCategory,
+  PlaceMenu,
   PlaceSchedule,
   Role,
   UserSummary,
@@ -38,6 +40,11 @@ export type AdminPlaceMatchesTheWire = Wire<AdminPlace, components['schemas']['A
 export type AdminPlanMatchesTheWire = Wire<AdminPlan, components['schemas']['Plan']>;
 export type AdminInvitationMatchesTheWire = Wire<AdminInvitation, components['schemas']['Invitation']>;
 export type PlaceCategoryMatchesTheWire = Wire<PlaceCategory, components['schemas']['PlaceCategory']>;
+export type PlaceAttributeMatchesTheWire = Wire<
+  PlaceAttribute,
+  components['schemas']['PlaceAttribute']
+>;
+export type PlaceMenuMatchesTheWire = Wire<PlaceMenu, components['schemas']['PlaceMenu']>;
 export type PlaceScheduleMatchesTheWire = Wire<
   PlaceSchedule,
   components['schemas']['PlaceSchedule']

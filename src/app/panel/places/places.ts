@@ -9,6 +9,9 @@ import {
   type AdminPlaceWrite,
   type PlaceCategory,
   type PlaceSchedule,
+  type PlaceAttribute,
+  type PlaceMenu,
+  type PlaceMenuItem,
 } from '../../core/admin-api';
 import { apiErrorCode } from '../../core/api-error';
 import { AuthService } from '../../core/auth.service';
@@ -162,6 +165,13 @@ export class Places {
   protected readonly week = signal<readonly DayDraft[]>(emptyWeek());
   protected readonly schedulesLoading = signal(false);
 
+  /** The attribute vocabulary and the codes on this place. */
+  protected readonly attributes = signal<readonly PlaceAttribute[]>([]);
+  protected readonly draftCodes = signal<readonly string[]>([]);
+
+  /** The menu being edited: sections, each with its dishes. Sent whole on save. */
+  protected readonly menus = signal<readonly PlaceMenu[]>([]);
+
   /** The active taxonomy: the form offers a select instead of asking for a uuid. */
   protected readonly categories = signal<readonly PlaceCategory[]>([]);
 
@@ -229,6 +239,16 @@ export class Places {
   constructor() {
     void this.load();
     void this.loadCategories();
+    void this.loadAttributes();
+  }
+
+  private async loadAttributes(): Promise<void> {
+    try {
+      this.attributes.set(await this.api.listPlaceAttributes('ACTIVE'));
+    } catch {
+      // No vocabulary, no checkboxes: leaving them empty is honest, inventing codes is not.
+      this.attributes.set([]);
+    }
   }
 
   private async loadCategories(): Promise<void> {
@@ -308,6 +328,8 @@ export class Places {
   protected openCreate(): void {
     this.editing.set(null);
     this.draft.set(emptyDraft());
+    this.draftCodes.set([]);
+    this.menus.set([]);
     this.errors.set([]);
     this.saveErrorCode.set(null);
     this.editorOpen.set(true);
@@ -317,10 +339,95 @@ export class Places {
     this.editing.set(place);
     this.draft.set(draftFrom(place));
     this.week.set(emptyWeek());
+    this.draftCodes.set([]);
+    this.menus.set([]);
     this.errors.set([]);
     this.saveErrorCode.set(null);
     this.editorOpen.set(true);
     void this.loadSchedules(place.coPlace);
+    void this.loadAttributesOf(place.coPlace);
+    void this.loadMenu(place.coPlace);
+  }
+
+  private async loadAttributesOf(coPlace: string): Promise<void> {
+    try {
+      this.draftCodes.set(await this.api.getPlaceAttributes(coPlace));
+    } catch {
+      this.draftCodes.set([]);
+    }
+  }
+
+  private async loadMenu(coPlace: string): Promise<void> {
+    try {
+      this.menus.set(await this.api.getPlaceMenu(coPlace));
+    } catch {
+      this.menus.set([]);
+    }
+  }
+
+  protected toggleCode(code: string): void {
+    const current = this.draftCodes();
+    this.draftCodes.set(
+      current.includes(code) ? current.filter((c) => c !== code) : [...current, code],
+    );
+  }
+
+  protected isCodeOn(code: string): boolean {
+    return this.draftCodes().includes(code);
+  }
+
+  // ---- menu editing -------------------------------------------------------
+
+  protected addSection(): void {
+    this.menus.update((menus) => [...menus, { name: '', description: null, items: [] }]);
+  }
+
+  protected removeSection(index: number): void {
+    this.menus.update((menus) => menus.filter((_, i) => i !== index));
+  }
+
+  protected patchSection(index: number, field: 'name' | 'description', value: string): void {
+    this.menus.update((menus) =>
+      menus.map((menu, i) =>
+        i === index ? { ...menu, [field]: value === '' ? (field === 'description' ? null : '') : value } : menu,
+      ),
+    );
+  }
+
+  protected addItem(section: number): void {
+    this.menus.update((menus) =>
+      menus.map((menu, i) =>
+        i === section
+          ? { ...menu, items: [...menu.items, { name: '', description: null, price: 0, currency: 'USD' }] }
+          : menu,
+      ),
+    );
+  }
+
+  protected removeItem(section: number, item: number): void {
+    this.menus.update((menus) =>
+      menus.map((menu, i) =>
+        i === section ? { ...menu, items: menu.items.filter((_, j) => j !== item) } : menu,
+      ),
+    );
+  }
+
+  protected patchItem<K extends keyof PlaceMenuItem>(
+    section: number,
+    item: number,
+    field: K,
+    value: PlaceMenuItem[K],
+  ): void {
+    this.menus.update((menus) =>
+      menus.map((menu, i) =>
+        i === section
+          ? {
+              ...menu,
+              items: menu.items.map((dish, j) => (j === item ? { ...dish, [field]: value } : dish)),
+            }
+          : menu,
+      ),
+    );
   }
 
   private async loadSchedules(coPlace: string): Promise<void> {
@@ -358,7 +465,7 @@ export class Places {
     if (this.saving()) return;
     const draft = this.draft();
     const week = this.week();
-    const errors = [...validate(draft), ...validateWeek(week)];
+    const errors = [...validate(draft), ...validateWeek(week), ...validateMenus(this.menus())];
     this.errors.set(errors);
     if (errors.length > 0) return;
 
@@ -373,6 +480,8 @@ export class Places {
       } else {
         coPlace = (await this.api.createAdminPlace(body)).coPlace;
       }
+      await this.api.replacePlaceAttributes(coPlace, [...this.draftCodes()]);
+      await this.api.replacePlaceMenu(coPlace, [...this.menus()]);
       // The whole set travels: a day left disabled is a day the venue is closed.
       const defined = week.filter((day) => day.enabled);
       if (defined.length > 0 || editing) {
@@ -509,5 +618,25 @@ function validateWeek(week: readonly DayDraft[]): readonly string[] {
       errors.push(`${DAYS[day.dayOfWeek - 1]}: opening and closing cannot be the same time.`);
     }
   }
+  return errors;
+}
+
+/**
+ * A section with no dishes is legal — a menu that exists but is not filled in yet — so only the
+ * things a dish cannot do without are refused: a name, a non-negative price and a currency.
+ */
+function validateMenus(menus: readonly PlaceMenu[]): readonly string[] {
+  const errors: string[] = [];
+  menus.forEach((menu, index) => {
+    if (menu.name.trim() === '') {
+      errors.push(`Menu ${index + 1}: a section needs a name.`);
+    }
+    menu.items.forEach((dish, position) => {
+      const where = `Menu ${index + 1}, dish ${position + 1}`;
+      if (dish.name.trim() === '') errors.push(`${where}: a name is required.`);
+      if (Number.isNaN(dish.price) || dish.price < 0) errors.push(`${where}: the price must be zero or more.`);
+      if (dish.currency.trim() === '') errors.push(`${where}: a currency is required.`);
+    });
+  });
   return errors;
 }

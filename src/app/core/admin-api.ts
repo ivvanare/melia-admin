@@ -34,6 +34,33 @@ export interface Role {
 }
 
 /** A place's own lifecycle, as the backoffice writes it. */
+/** One dish. `price` needs a currency: a number without one means nothing. */
+export interface PlaceMenuItem {
+  name: string;
+  description: string | null;
+  price: number;
+  /** ISO-4217. */
+  currency: string;
+}
+
+/**
+ * A menu section and its dishes. A section with no items is a real state — a loaded menu that
+ * simply has nothing in it yet — so an editor must not treat it as invalid.
+ */
+export interface PlaceMenu {
+  name: string;
+  description: string | null;
+  items: PlaceMenuItem[];
+}
+
+/** `PlaceAttribute` in `api/openapi.yaml`: the vocabulary, same shape as categories. */
+export interface PlaceAttribute {
+  coPlaceAttribute: string;
+  code: string;
+  name: string;
+  status: 'ACTIVE' | 'INACTIVE';
+}
+
 /**
  * One opening slot. `close` at or before `open` means the venue crosses midnight — "opens 20:00,
  * closes 02:00" is a normal night, not an invalid range.
@@ -326,6 +353,60 @@ export class AdminApi {
         `${this.baseUrl}/admin/users/${encodeURIComponent(userId)}/roles`,
         { roles },
       ),
+    );
+  }
+
+  /**
+   * The attribute vocabulary. It is public taxonomy, like categories, and `code` is the stable key:
+   * the uuid belongs to the catalogue, while filters and writes take the code.
+   */
+  async listPlaceAttributes(status: 'ACTIVE' | 'INACTIVE' = 'ACTIVE'): Promise<PlaceAttribute[]> {
+    const body = await firstValueFrom(
+      this.http.get<{ data: PlaceAttribute[] }>(`${this.baseUrl}/place-attributes`, {
+        params: toParams({ status }),
+      }),
+    );
+    return body.data;
+  }
+
+  /** The codes currently on a place. */
+  async getPlaceAttributes(coPlace: string): Promise<string[]> {
+    const body = await firstValueFrom(
+      this.http.get<{ data: string[] }>(
+        `${this.baseUrl}/admin/places/${encodeURIComponent(coPlace)}/attributes`,
+      ),
+    );
+    return body.data ?? [];
+  }
+
+  /** Replaces the whole attribute set. An unknown code is `422`, never silently dropped. */
+  async replacePlaceAttributes(coPlace: string, codes: string[]): Promise<void> {
+    await firstValueFrom(
+      this.http.put<void>(
+        `${this.baseUrl}/admin/places/${encodeURIComponent(coPlace)}/attributes`,
+        { codes },
+      ),
+    );
+  }
+
+  async getPlaceMenu(coPlace: string): Promise<PlaceMenu[]> {
+    const body = await firstValueFrom(
+      this.http.get<{ data: PlaceMenu[] }>(
+        `${this.baseUrl}/admin/places/${encodeURIComponent(coPlace)}/menu`,
+      ),
+    );
+    return body.data ?? [];
+  }
+
+  /**
+   * Replaces the **whole** menu, sections and dishes included: editing one dish still means sending
+   * every section, or the rest of the menu disappears.
+   */
+  async replacePlaceMenu(coPlace: string, menus: PlaceMenu[]): Promise<void> {
+    await firstValueFrom(
+      this.http.put<void>(`${this.baseUrl}/admin/places/${encodeURIComponent(coPlace)}/menu`, {
+        menus,
+      }),
     );
   }
 

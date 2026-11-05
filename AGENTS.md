@@ -108,7 +108,7 @@ Rules that matter here:
 ## Discovery endpoints (in `melia`, not in `contract/` yet)
 
 The discovery and social routes are in `contract/`, pinned to a pushed commit of
-`feat/api-social-graph` (`3a78317e`): `GET /v1/places` (list and map), the review routes,
+`feat/api-social-graph` (`9e4e7227`): `GET /v1/places` (list and map), the review routes,
 `PATCH /v1/admin/reviews/{coReview}`, `/v1/follows` and the check-in route. The rule that matters when
 the API moves again: run `scripts/sync-contract.sh <commit>` only when that commit is **remote**, because
 the `contract` CI job fetches it from the API's repository; pinning an unpushed one turns the job red for
@@ -277,3 +277,21 @@ One invariant worth checking whenever a list looks wrong: a page of rows and its
 API once answered `total=1` with zero rows under an active block; paginating that pages forever through
 empty results. If a total does not match the rows, report it to the API rather than compensating in the
 client — a client-side workaround hides a server bug instead of fixing it.
+
+## Place content: what the admin form owns
+
+The place dialog now edits identity, location, **opening hours**, **attributes** and **menu**. Three
+properties of those writes, each of which has already caused a bug elsewhere:
+
+- **Every one of them replaces a whole set.** Schedules, attributes and the menu are `PUT` as complete
+  collections: a day, a code or a dish left out is a day, a code or a dish that disappears. An editor
+  must therefore load first and send everything it means to keep — never a diff.
+- **A legal state can look like an error.** A closing time at or before the opening one means the venue
+  crosses midnight, and a menu section with no dishes is a menu with nothing in it yet. Both are valid;
+  only equal opening/closing times, a missing currency or a negative price are refused.
+- **`code` is the key, not the uuid.** Attributes and categories are taxonomy: filters and writes take
+  `code`, while the catalogue's uuid only identifies the row. Reusing the vocabulary from an endpoint is
+  the only way to keep the options honest — hardcoding codes is the mistake the id-field rule forbids.
+
+Photos remain the one place-content gap, and it is not an API gap: nothing ships until the human decides
+where the files live.
