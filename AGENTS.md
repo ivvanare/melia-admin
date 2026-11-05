@@ -149,6 +149,24 @@ Facts that each cost a bug already:
 - **A running container may serve an older image than the code you read.** If a new filter returns `200`
   with exactly the result it should have changed, suspect the deployed commit before the contract.
 
+## The panel is administrative, never participatory
+
+This SPA administers the site. It moderates content and accounts; it does not act as a client of the
+product. Concretely, the panel **does not**:
+
+- join a plan, accept or decline an invitation, vote on a place, follow someone, check in, or send a
+  friendship request — those are client flows by definition, and building them here would create a second
+  participant surface with its own permission model to get wrong;
+- show a customer inbox, a personal feed, or "my invitations".
+
+What it does is the other side of the same data: moderate a review, curate or retire a place, suspend an
+account, reassign a role, read the audit log. When a domain has no moderation route, the panel has no
+screen — the missing piece is on the API, not a gap to fill with a participant flow.
+
+Current state of that rule: reviews, places, users, roles, permissions and the audit log have admin
+routes. **Plans, invitations and votes have none** — every route they expose is viewer-scoped
+(`/v1/plans`, `/v1/invitations`), so the panel cannot moderate them yet and does not pretend to.
+
 ## Forms that reference another table
 
 A field that needs another row's id is **never** a free-text uuid input when the catalogue can be
