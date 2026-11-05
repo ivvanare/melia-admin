@@ -16,7 +16,8 @@ Every screen reads the real API — the last mock store was deleted with the pla
 | My account | profile, email change |
 
 Base components: `app-data-table` and `app-dialog-shell` in `src/app/shared/`. No panel screen draws its
-own table. Contract pinned at `0aa2e7c3` and verified by the `contract` CI job.
+own table. Contract pinned at `0aa2e7c3` and verified by the `contract` CI job. The API's `dev` later moved to
+`201daf8`, documentation only, so the pin remains valid until a commit that touches `api/openapi.yaml`.
 
 ## How to work on it
 
@@ -26,8 +27,11 @@ id-field rule for forms, and the per-domain traps that already cost a bug.
 
 ## Open, and what each one waits on
 
-1. **`PUT /v1/admin/places/{coPlace}/photos`** — reordering the gallery without re-uploading. Requested
-   from the API; the cover has a working alternative, ordering does not.
+1. **`PUT /v1/admin/places/{coPlace}/photos`** — reordering the gallery without re-uploading. Accepted by
+   the API session and **registered as L20 in their change record, not built**: `{photos: [{coPhoto, type,
+   order}]}` → `204`, full-set replacement, `422 field: photos` when a `coPhoto` does not belong to the
+   place. It is the first item on their list when work resumes. The cover has a working alternative
+   (upload another `COVER`); ordering does not, which is why this is not cosmetic.
 2. **Photo storage for production** — the human's decision. A Docker volume for dev; S3 or equivalent
    before any release, because a volume is a development answer.
 3. **Plan itinerary, read-only** — agreed shape (`PlanPlace`, `plan.moderate`, no writes), deliberately not
