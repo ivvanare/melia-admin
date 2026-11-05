@@ -1,7 +1,9 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import type { ListQuery } from 'ng-crud-maker';
+import { AdminApi } from '../../core/admin-api';
 import type { AuditEvent } from '../../core/admin-api';
 import { AdminTransport } from '../../core/admin-transport';
+import { AuthService } from '../../core/auth.service';
 import { DataTable, type DataTableColumn } from '../../shared/data-table/data-table';
 
 /** Page size the API's own paging default suggests; the log is read newest-first. */
@@ -37,6 +39,8 @@ function stamp(value: unknown): string {
 })
 export class Audit {
   private readonly transport = inject(AdminTransport);
+  private readonly auth = inject(AuthService);
+  private readonly api = inject(AdminApi);
 
   protected readonly rows = signal<readonly AuditEvent[]>([]);
   protected readonly total = signal(0);
@@ -49,6 +53,12 @@ export class Audit {
   protected readonly emailHashFilter = signal('');
   protected readonly fromFilter = signal('');
   protected readonly toFilter = signal('');
+
+  /**
+   * The user filter asks for a uuid only when the table cannot be listed. With `user.read` the same
+   * field becomes a select, because an id typed from memory is a typo waiting to return nothing.
+   */
+  protected readonly userOptions = signal<readonly { id: string; label: string }[]>([]);
 
   protected readonly pageCount = computed(() => Math.max(1, Math.ceil(this.total() / PAGE_SIZE)));
 
@@ -85,6 +95,22 @@ export class Audit {
 
   constructor() {
     void this.load();
+    void this.loadUsers();
+  }
+
+  private async loadUsers(): Promise<void> {
+    if (!this.auth.permissions().includes('user.read')) return;
+    try {
+      const page = await this.api.listUsers({ page: 1, limit: 50 });
+      this.userOptions.set(
+        page.data.map((user) => ({
+          id: user.id,
+          label: user.name?.trim() || user.email || user.id,
+        })),
+      );
+    } catch {
+      this.userOptions.set([]);
+    }
   }
 
   protected async load(): Promise<void> {

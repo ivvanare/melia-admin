@@ -164,3 +164,11 @@ Test runners: `npx ng test admin --watch=false`; `tsc --noEmit` for `tsconfig.ap
   `ng test admin` **129 tests / 26 files green**, `ng build` green, and the only remaining `<table>` in
   the panel is the base component itself (plus the `faqs` demo). Dead CSS from the removed markup went
   with it.
+- **L19** (delivered, user rule + parent): the human's rule was that a form field needing another table's id
+  must be a select over that table's active rows. Applying it closed the last three uuid fields in the
+  panel: the Places listing gained a category filter fed by the taxonomy it already loads, and the Reviews
+  and Audit filters became selects when the session can list the table (`place.update` for places,
+  `user.read` for users). Each keeps its text input as a fallback: an empty select would read as "there
+  are none" when the real cause is "you may not list them", which is a lie the field cannot afford.
+  Verified: `tsc` app and spec exit 0, `ng test admin` **132 tests / 26 files** (two new tests cover the
+  catalogue path, which the old specs did not reach), `ng build` green.

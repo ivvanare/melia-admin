@@ -115,6 +115,7 @@ export class Places {
   protected readonly statusFilter = signal('');
   protected readonly countryFilter = signal('');
   protected readonly regionFilter = signal('');
+  protected readonly categoryFilter = signal('');
   protected readonly listStatuses = LIST_STATUSES;
 
   protected readonly view = signal<'cards' | 'table'>('cards');
@@ -228,6 +229,7 @@ export class Places {
         status: (this.statusFilter() as AdminPlaceListStatus | '') || null,
         country: this.countryFilter().trim() || null,
         region: this.regionFilter().trim() || null,
+        categoryId: this.categoryFilter() || null,
       });
       this.rows.set(result.data);
       this.total.set(result.total);

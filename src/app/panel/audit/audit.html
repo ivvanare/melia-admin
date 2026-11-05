@@ -30,12 +30,25 @@
 
     <label class="field">
       User
-      <input
-        type="text"
-        placeholder="user id"
-        [value]="userFilter()"
-        (input)="userFilter.set($any($event.target).value); apply()"
-      />
+      @if (userOptions().length > 0) {
+        <select
+          id="audit-user"
+          [value]="userFilter()"
+          (change)="userFilter.set($any($event.target).value); apply()"
+        >
+          <option value="">Any user</option>
+          @for (user of userOptions(); track user.id) {
+            <option [value]="user.id">{{ user.label }}</option>
+          }
+        </select>
+      } @else {
+        <input
+          type="text"
+          placeholder="user id"
+          [value]="userFilter()"
+          (input)="userFilter.set($any($event.target).value); apply()"
+        />
+      }
     </label>
 
     <label class="field">

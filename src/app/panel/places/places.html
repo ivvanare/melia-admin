@@ -53,6 +53,20 @@
     </label>
 
     <label class="field narrow">
+      Category
+      <select
+        id="places-category"
+        [value]="categoryFilter()"
+        (change)="categoryFilter.set($any($event.target).value); apply()"
+      >
+        <option value="">Any category</option>
+        @for (category of categories(); track category.coPlaceCategory) {
+          <option [value]="category.coPlaceCategory">{{ category.name }}</option>
+        }
+      </select>
+    </label>
+
+    <label class="field narrow">
       Country
       <input
         id="places-country"

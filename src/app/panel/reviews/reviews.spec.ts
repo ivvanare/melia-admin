@@ -1,6 +1,8 @@
 import { TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AdminApi, type AdminReview } from '../../core/admin-api';
+import { AuthService } from '../../core/auth.service';
+import { computed, signal } from '@angular/core';
 import { Reviews } from './reviews';
 
 const REVIEWS: AdminReview[] = [
@@ -35,15 +37,60 @@ const tick = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
 describe('Reviews', () => {
   const listAdminReviews = vi.fn();
   const setReviewStatus = vi.fn();
+  const listAdminPlaces = vi.fn();
+  const listUsers = vi.fn();
 
   beforeEach(() => {
     TestBed.resetTestingModule();
     listAdminReviews.mockReset().mockResolvedValue({ data: REVIEWS, page: 1, limit: 20, total: 2 });
     setReviewStatus.mockReset();
+    listAdminPlaces.mockReset().mockResolvedValue({
+      data: [
+        {
+          coPlace: 'p1',
+          coOwnerUser: null,
+          name: 'N',
+          title: 'Arepera Chacao',
+          description: null,
+          category: { id: 'c', name: 'Arepera' },
+          country: 'VE',
+          region: null,
+          timezone: 'America/Caracas',
+          latitude: 1,
+          longitude: 1,
+          address: null,
+          status: 'ACTIVE',
+          createdAt: '2026-01-01T00:00:00Z',
+          updatedAt: '2026-01-01T00:00:00Z',
+          deletedAt: null,
+        },
+      ],
+      page: 1,
+      limit: 50,
+      total: 1,
+    });
+    listUsers.mockReset().mockResolvedValue({
+      data: [
+        {
+          id: 'u1',
+          name: 'Ana Rondón',
+          email: 'ana@melia.test',
+          status: 'ACTIVE',
+          email_verified_at: null,
+          roles: [],
+          created_at: '2026-01-01T00:00:00Z',
+        },
+      ],
+      page: 1,
+      limit: 50,
+      total: 1,
+    });
 
     TestBed.configureTestingModule({
       imports: [Reviews],
-      providers: [{ provide: AdminApi, useValue: { listAdminReviews, setReviewStatus } }],
+      providers: [
+        { provide: AdminApi, useValue: { listAdminReviews, setReviewStatus, listAdminPlaces, listUsers } },
+      ],
     });
   });
 
@@ -163,6 +210,43 @@ describe('Reviews', () => {
 
     const last = listAdminReviews.mock.calls.at(-1)?.[0];
     expect(last).toMatchObject({ status: 'MODERATED', placeId: 'p1', authorId: 'u1', page: 1, limit: 20 });
+  });
+
+  it('offers the place and the author as selects when the session may list them', async () => {
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      imports: [Reviews],
+      providers: [
+        {
+          provide: AuthService,
+          useValue: {
+            user: signal(null).asReadonly(),
+            permissions: computed(() => ['review.moderate', 'place.update', 'user.read']),
+          },
+        },
+        {
+          provide: AdminApi,
+          useValue: { listAdminReviews, setReviewStatus, listAdminPlaces, listUsers },
+        },
+      ],
+    });
+
+    const { element, fixture } = await render();
+
+    const place = element.querySelector<HTMLSelectElement>('#reviews-place')!;
+    const author = element.querySelector<HTMLSelectElement>('#reviews-author')!;
+    expect(place.tagName).toBe('SELECT');
+    expect(author.tagName).toBe('SELECT');
+    // The options carry a readable label, not a uuid in front of a person.
+    expect(place.textContent).toContain('Arepera Chacao');
+    expect(author.textContent).toContain('Ana Rondón');
+
+    author.value = 'u1';
+    author.dispatchEvent(new Event('change'));
+    await tick();
+    fixture.detectChanges();
+
+    expect(listAdminReviews.mock.calls.at(-1)?.[0]).toMatchObject({ authorId: 'u1', page: 1 });
   });
 
   it('reports the code when the listing itself fails', async () => {

@@ -50,27 +50,53 @@
     </label>
 
     <label class="field">
-      Place id
-      <input
-        id="reviews-place"
-        class="mono"
-        type="text"
-        placeholder="coPlace (uuid)"
-        [value]="placeFilter()"
-        (input)="placeFilter.set($any($event.target).value); apply()"
-      />
+      Place
+      @if (placeOptions().length > 0) {
+        <select
+          id="reviews-place"
+          [value]="placeFilter()"
+          (change)="placeFilter.set($any($event.target).value); apply()"
+        >
+          <option value="">Any place</option>
+          @for (place of placeOptions(); track place.id) {
+            <option [value]="place.id">{{ place.label }}</option>
+          }
+        </select>
+      } @else {
+        <input
+          id="reviews-place"
+          class="mono"
+          type="text"
+          placeholder="coPlace (uuid)"
+          [value]="placeFilter()"
+          (input)="placeFilter.set($any($event.target).value); apply()"
+        />
+      }
     </label>
 
     <label class="field">
-      Author id
-      <input
-        id="reviews-author"
-        class="mono"
-        type="text"
-        placeholder="author (uuid)"
-        [value]="authorFilter()"
-        (input)="authorFilter.set($any($event.target).value); apply()"
-      />
+      Author
+      @if (authorOptions().length > 0) {
+        <select
+          id="reviews-author"
+          [value]="authorFilter()"
+          (change)="authorFilter.set($any($event.target).value); apply()"
+        >
+          <option value="">Any author</option>
+          @for (author of authorOptions(); track author.id) {
+            <option [value]="author.id">{{ author.label }}</option>
+          }
+        </select>
+      } @else {
+        <input
+          id="reviews-author"
+          class="mono"
+          type="text"
+          placeholder="author (uuid)"
+          [value]="authorFilter()"
+          (input)="authorFilter.set($any($event.target).value); apply()"
+        />
+      }
     </label>
   </div>
 
