@@ -7,6 +7,7 @@ import { NzModalModule } from 'ng-zorro-antd/modal';
 import { AdminApi, type Role, type UserStatus, type UserSummary } from '../../core/admin-api';
 import { AdminTransport } from '../../core/admin-transport';
 import { apiErrorCode } from '../../core/api-error';
+import { DialogShell } from '../../shared/dialog-shell/dialog-shell';
 
 /**
  * The users entity as JSON-shaped config: the engine derives columns, search and
@@ -71,7 +72,7 @@ const USERS_CONFIG = defineCrudConfig({
  */
 @Component({
   selector: 'app-users',
-  imports: [CrudListScreen, NzButtonModule, NzModalModule],
+  imports: [CrudListScreen, NzButtonModule, NzModalModule, DialogShell],
   templateUrl: './users.html',
   styleUrl: './users.css',
 })

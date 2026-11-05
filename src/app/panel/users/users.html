@@ -50,44 +50,44 @@
   >
     <ng-container *nzModalContent>
       @if (editingUser(); as user) {
-        <p class="modal-lead">
-          {{ user.email ?? user.id }}
-        </p>
+        <app-dialog-shell
+          class="single-column mono-lead"
+          [lead]="user.email ?? user.id"
+          [errorCode]="saveErrorCode()"
+        >
+          <span slot="error-message">The role change was rejected: </span>
+          <div slot="left" class="col">
+            @if (!roles().length) {
+              <p class="muted">The role catalogue could not be loaded.</p>
+            } @else {
+              <fieldset>
+                <legend class="sr-only">Roles</legend>
+                @for (role of roles(); track role.name) {
+                  <label class="check">
+                    <input
+                      type="checkbox"
+                      [checked]="isChecked(role)"
+                      [disabled]="saving()"
+                      (change)="toggleRole(role)"
+                    />
+                    <span>
+                      <strong>{{ role.name }}</strong>
+                      @if (role.description) {
+                        <span class="muted"> — {{ role.description }}</span>
+                      }
+                    </span>
+                  </label>
+                }
+              </fieldset>
 
-        @if (!roles().length) {
-          <p class="muted">The role catalogue could not be loaded.</p>
-        } @else {
-          <fieldset>
-            <legend class="sr-only">Roles</legend>
-            @for (role of roles(); track role.name) {
-              <label class="check">
-                <input
-                  type="checkbox"
-                  [checked]="isChecked(role)"
-                  [disabled]="saving()"
-                  (change)="toggleRole(role)"
-                />
-                <span>
-                  <strong>{{ role.name }}</strong>
-                  @if (role.description) {
-                    <span class="muted"> — {{ role.description }}</span>
-                  }
-                </span>
-              </label>
+              <p class="hint">
+                The set replaces the current one: a role left unchecked is removed. Saving writes an
+                audit event.
+              </p>
             }
-          </fieldset>
-
-          @if (saveErrorCode(); as code) {
-            <p class="save-error" role="alert">
-              The role change was rejected: <code>{{ code }}</code>
-            </p>
-          }
-
-          <p class="hint">
-            The set replaces the current one: a role left unchecked is removed. Saving writes an
-            audit event.
-          </p>
-        }
+          </div>
+          <div slot="right" class="col"></div>
+        </app-dialog-shell>
       }
     </ng-container>
   </nz-modal>
@@ -103,43 +103,42 @@
     (nzOnOk)="sendInvite()"
   >
     <ng-container *nzModalContent>
-      <p class="modal-lead">
-        The invitation creates nothing: the person registers, proves the address with the
-        code, and you grant the role afterwards.
-      </p>
+      <app-dialog-shell
+        class="single-column mono-lead"
+        lead="The invitation creates nothing: the person registers, proves the address with the code, and you grant the role afterwards."
+        [errorCode]="inviteErrorCode()"
+      >
+        <span slot="error-message">The invitation was rejected: </span>
+        <div slot="left" class="col">
+          <div class="field">
+            <label for="invite-email">Email</label>
+            <input
+              id="invite-email"
+              class="dialog-input"
+              nz-input
+              type="email"
+              autocomplete="off"
+              [value]="inviteEmail()"
+              [disabled]="inviting()"
+              (input)="onInviteEmail($any($event.target).value)"
+            />
+          </div>
 
-      <div class="field">
-        <label for="invite-email">Email</label>
-        <input
-          id="invite-email"
-          class="modal-input"
-          nz-input
-          type="email"
-          autocomplete="off"
-          [value]="inviteEmail()"
-          [disabled]="inviting()"
-          (input)="onInviteEmail($any($event.target).value)"
-        />
-      </div>
-
-      <div class="field">
-        <label for="invite-name">Name <span class="muted">(optional)</span></label>
-        <input
-          id="invite-name"
-          class="modal-input"
-          nz-input
-          type="text"
-          [value]="inviteName()"
-          [disabled]="inviting()"
-          (input)="onInviteName($any($event.target).value)"
-        />
-      </div>
-
-      @if (inviteErrorCode(); as code) {
-        <p class="save-error" role="alert">
-          The invitation was rejected: <code>{{ code }}</code>
-        </p>
-      }
+          <div class="field">
+            <label for="invite-name">Name <span class="muted">(optional)</span></label>
+            <input
+              id="invite-name"
+              class="dialog-input"
+              nz-input
+              type="text"
+              [value]="inviteName()"
+              [disabled]="inviting()"
+              (input)="onInviteName($any($event.target).value)"
+            />
+          </div>
+        </div>
+        <div slot="right" class="col"></div>
+      </app-dialog-shell>
     </ng-container>
   </nz-modal>
 
@@ -155,46 +154,48 @@
   >
     <ng-container *nzModalContent>
       @if (profileUser(); as user) {
-        <p class="modal-lead">{{ user.email ?? user.id }}</p>
+        <app-dialog-shell
+          class="single-column mono-lead"
+          [lead]="user.email ?? user.id"
+          [errorCode]="profileErrorCode()"
+        >
+          <span slot="error-message">The change was rejected: </span>
+          <div slot="left" class="col">
+            <div class="field">
+              <label for="profile-name">Name</label>
+              <input
+                id="profile-name"
+                class="dialog-input"
+                nz-input
+                type="text"
+                [value]="profileName()"
+                [disabled]="profileSaving()"
+                (input)="onProfileName($any($event.target).value)"
+              />
+            </div>
 
-        <div class="field">
-          <label for="profile-name">Name</label>
-          <input
-            id="profile-name"
-            class="modal-input"
-            nz-input
-            type="text"
-            [value]="profileName()"
-            [disabled]="profileSaving()"
-            (input)="onProfileName($any($event.target).value)"
-          />
-        </div>
+            <div class="field">
+              <label for="profile-status">Status</label>
+              <select
+                id="profile-status"
+                class="dialog-input"
+                [value]="profileStatus()"
+                [disabled]="profileSaving()"
+                (change)="onProfileStatus($any($event.target).value)"
+              >
+                @for (status of statuses; track status) {
+                  <option [value]="status">{{ status }}</option>
+                }
+              </select>
+            </div>
 
-        <div class="field">
-          <label for="profile-status">Status</label>
-          <select
-            id="profile-status"
-            class="profile-status"
-            [value]="profileStatus()"
-            [disabled]="profileSaving()"
-            (change)="onProfileStatus($any($event.target).value)"
-          >
-            @for (status of statuses; track status) {
-              <option [value]="status">{{ status }}</option>
-            }
-          </select>
-        </div>
-
-        @if (profileErrorCode(); as code) {
-          <p class="save-error" role="alert">
-            The change was rejected: <code>{{ code }}</code>
-          </p>
-        }
-
-        <p class="hint">
-          The email is not editable here: a new address has to prove itself through the
-          verified change flow. Suspending a user keeps their sessions valid until they expire.
-        </p>
+            <p class="hint">
+              The email is not editable here: a new address has to prove itself through the
+              verified change flow. Suspending a user keeps their sessions valid until they expire.
+            </p>
+          </div>
+          <div slot="right" class="col"></div>
+        </app-dialog-shell>
       }
     </ng-container>
   </nz-modal>
