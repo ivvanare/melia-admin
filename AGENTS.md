@@ -149,6 +149,23 @@ Facts that each cost a bug already:
 - **A running container may serve an older image than the code you read.** If a new filter returns `200`
   with exactly the result it should have changed, suspect the deployed commit before the contract.
 
+## Forms that reference another table
+
+A field that needs another row's id is **never** a free-text uuid input when the catalogue can be
+listed. The rule, in the order it applies:
+
+- If an endpoint lists that table's **active** items, the field is a `<select>` fed by it. Not a
+  datalist, not a uuid input with a hint: a select, so the value cannot be a typo the server rejects.
+- If no such endpoint exists, say so and request it — do not derive the options from whatever ids
+  happen to appear in the current page. That silently hides every valid option that is not already in
+  use, and a select that cannot express the truth is worse than an honest text field.
+- Read-only references (a row showing another row's id) follow the same logic: the payload should
+  carry a display name. If it only carries a uuid, request the name in the payload rather than
+  resolving it with N extra requests from the client.
+
+Known gaps at the time of writing, both blocked on the API: there is no endpoint listing place
+categories, and an admin review row carries `coPlace` without the place's title.
+
 ## Branches and commits
 
 `dev` → `quality` → `prod`, promoting in one direction; work on a short-lived branch and open the
