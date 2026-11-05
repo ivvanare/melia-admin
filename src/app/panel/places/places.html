@@ -311,6 +311,60 @@
           </fieldset>
 
           <fieldset>
+            <legend>Photos</legend>
+            <p class="hint">
+              Up to 5 MB per file, JPEG/PNG/WebP. Uploading a cover replaces the previous one. This
+              list only shows what was uploaded in this dialog: the API has no route to read the
+              gallery yet.
+            </p>
+
+            @if (photoErrorCode(); as code) {
+              <p class="save-error" role="alert">
+                The photo was not stored: <code>{{ code }}</code>
+              </p>
+            }
+
+            @if (photos().length > 0) {
+              <div class="photo-strip">
+                @for (photo of photos(); track photo.coPhoto) {
+                  <figure class="thumb">
+                    <img [src]="photoSrc(photo)" [alt]="photo.type === 'COVER' ? 'Cover photo' : 'Gallery photo'" />
+                    <figcaption>
+                      <span class="tag" [class.info]="photo.type === 'COVER'" [class.neutral]="photo.type !== 'COVER'">
+                        {{ photo.type }}
+                      </span>
+                      <button class="btn ghost" type="button" (click)="removePhoto(photo)">Remove</button>
+                    </figcaption>
+                  </figure>
+                }
+              </div>
+            }
+
+            <div class="photo-actions">
+              <label class="btn secondary">
+                Upload cover
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  class="sr-only"
+                  [disabled]="uploading() || !editing()"
+                  (change)="onPhotoPicked($event, 'COVER')"
+                />
+              </label>
+              <label class="btn secondary">
+                Add to gallery
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  class="sr-only"
+                  [disabled]="uploading() || !editing()"
+                  (change)="onPhotoPicked($event, 'GALLERY')"
+                />
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset>
             <legend>Attributes</legend>
             @if (attributes().length === 0) {
               <p class="hint">The attribute vocabulary could not be loaded.</p>

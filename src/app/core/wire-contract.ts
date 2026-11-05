@@ -9,6 +9,7 @@ import type {
   PlaceAttribute,
   PlaceCategory,
   PlaceMenu,
+  PlacePhoto,
   PlaceSchedule,
   Role,
   UserSummary,
@@ -45,6 +46,7 @@ export type PlaceAttributeMatchesTheWire = Wire<
   components['schemas']['PlaceAttribute']
 >;
 export type PlaceMenuMatchesTheWire = Wire<PlaceMenu, components['schemas']['PlaceMenu']>;
+export type PlacePhotoMatchesTheWire = Wire<PlacePhoto, components['schemas']['PlacePhoto']>;
 export type PlaceScheduleMatchesTheWire = Wire<
   PlaceSchedule,
   components['schemas']['PlaceSchedule']

@@ -12,6 +12,7 @@ import {
   type PlaceAttribute,
   type PlaceMenu,
   type PlaceMenuItem,
+  type PlacePhoto,
 } from '../../core/admin-api';
 import { apiErrorCode } from '../../core/api-error';
 import { AuthService } from '../../core/auth.service';
@@ -172,6 +173,19 @@ export class Places {
   /** The menu being edited: sections, each with its dishes. Sent whole on save. */
   protected readonly menus = signal<readonly PlaceMenu[]>([]);
 
+  /**
+   * Photos already uploaded in this dialog. The contract exposes upload and delete but **no read**,
+   * so this list starts empty and only ever contains what this session uploaded; a reload cannot
+   * recover the gallery until a read route exists.
+   */
+  protected readonly photos = signal<readonly PlacePhoto[]>([]);
+  protected readonly uploading = signal(false);
+  protected readonly photoErrorCode = signal<string | null>(null);
+
+  /** 5 MB is the server's limit; refusing earlier gives the same answer without the upload. */
+  private readonly maxPhotoBytes = 5 * 1024 * 1024;
+  private readonly allowedPhotoTypes = ['image/jpeg', 'image/png', 'image/webp'];
+
   /** The active taxonomy: the form offers a select instead of asking for a uuid. */
   protected readonly categories = signal<readonly PlaceCategory[]>([]);
 
@@ -330,6 +344,8 @@ export class Places {
     this.draft.set(emptyDraft());
     this.draftCodes.set([]);
     this.menus.set([]);
+    this.photos.set([]);
+    this.photoErrorCode.set(null);
     this.errors.set([]);
     this.saveErrorCode.set(null);
     this.editorOpen.set(true);
@@ -341,6 +357,8 @@ export class Places {
     this.week.set(emptyWeek());
     this.draftCodes.set([]);
     this.menus.set([]);
+    this.photos.set([]);
+    this.photoErrorCode.set(null);
     this.errors.set([]);
     this.saveErrorCode.set(null);
     this.editorOpen.set(true);
@@ -363,6 +381,67 @@ export class Places {
     } catch {
       this.menus.set([]);
     }
+  }
+
+  /**
+   * Uploads one file. The client refuses what the server would refuse anyway — size and declared
+   * type — because a 5 MB round trip to learn "too big" is a waste of the operator's time. The server
+   * still sniffs the bytes, so the declared type is a courtesy, not a guarantee.
+   */
+  protected async uploadPhoto(file: File, type: 'COVER' | 'GALLERY'): Promise<void> {
+    const place = this.editing();
+    if (!place || this.uploading()) return;
+
+    this.photoErrorCode.set(null);
+    if (file.size > this.maxPhotoBytes) {
+      this.photoErrorCode.set('too_long');
+      return;
+    }
+    if (!this.allowedPhotoTypes.includes(file.type)) {
+      this.photoErrorCode.set('invalid_type');
+      return;
+    }
+
+    this.uploading.set(true);
+    try {
+      const photo = await this.api.uploadPlacePhoto(place.coPlace, file, type);
+      // A new cover replaces the old one server-side, so the list has to agree.
+      this.photos.update((photos) =>
+        type === 'COVER'
+          ? [...photos.filter((p) => p.type !== 'COVER'), photo]
+          : [...photos, photo],
+      );
+    } catch (error) {
+      this.photoErrorCode.set(apiErrorCode(error));
+    } finally {
+      this.uploading.set(false);
+    }
+  }
+
+  protected photoSrc(photo: PlacePhoto): string {
+    return this.api.photoUrl(photo.url);
+  }
+
+  protected async removePhoto(photo: PlacePhoto): Promise<void> {
+    const place = this.editing();
+    if (!place || this.uploading()) return;
+    this.photoErrorCode.set(null);
+    this.uploading.set(true);
+    try {
+      await this.api.deletePlacePhoto(place.coPlace, photo.coPhoto);
+      this.photos.update((photos) => photos.filter((p) => p.coPhoto !== photo.coPhoto));
+    } catch (error) {
+      this.photoErrorCode.set(apiErrorCode(error));
+    } finally {
+      this.uploading.set(false);
+    }
+  }
+
+  protected onPhotoPicked(event: Event, type: 'COVER' | 'GALLERY'): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    if (file) void this.uploadPhoto(file, type);
   }
 
   protected toggleCode(code: string): void {

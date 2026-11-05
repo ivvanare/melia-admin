@@ -296,3 +296,43 @@
 .dish {
   grid-template-columns: 1fr 84px 84px auto;
 }
+
+/* Photos: a strip of previews with the type as a pill, and two upload buttons. */
+.photo-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 10px 0;
+}
+
+.thumb {
+  margin: 0;
+  width: 104px;
+}
+
+.thumb img {
+  width: 100%;
+  height: 72px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+}
+
+.thumb figcaption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.photo-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.photo-actions label {
+  cursor: pointer;
+}

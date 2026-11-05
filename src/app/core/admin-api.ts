@@ -34,6 +34,14 @@ export interface Role {
 }
 
 /** A place's own lifecycle, as the backoffice writes it. */
+/** A stored photo. `url` is a path under the API origin, not an absolute one. */
+export interface PlacePhoto {
+  coPhoto: string;
+  url: string;
+  type: 'COVER' | 'GALLERY';
+  order: number;
+}
+
 /** One dish. `price` needs a currency: a number without one means nothing. */
 export interface PlaceMenuItem {
   name: string;
@@ -354,6 +362,40 @@ export class AdminApi {
         { roles },
       ),
     );
+  }
+
+  /**
+   * Uploads one photo as multipart. The server sniffs the bytes rather than trusting the part's
+   * content type, rejects anything over 5 MB with `422 field: file, code: too_long`, and replaces the
+   * previous cover by itself when `type` is `COVER` — so the caller never deletes the old one first.
+   */
+  async uploadPlacePhoto(
+    coPlace: string,
+    file: File,
+    type: 'COVER' | 'GALLERY' = 'GALLERY',
+  ): Promise<PlacePhoto> {
+    const body = new FormData();
+    body.append('file', file);
+    body.append('type', type);
+    return firstValueFrom(
+      this.http.post<PlacePhoto>(
+        `${this.baseUrl}/admin/places/${encodeURIComponent(coPlace)}/photos`,
+        body,
+      ),
+    );
+  }
+
+  async deletePlacePhoto(coPlace: string, coPhoto: string): Promise<void> {
+    await firstValueFrom(
+      this.http.delete<void>(
+        `${this.baseUrl}/admin/places/${encodeURIComponent(coPlace)}/photos/${encodeURIComponent(coPhoto)}`,
+      ),
+    );
+  }
+
+  /** The stored `url` is a path under the API origin; `<img>` needs it absolute. */
+  photoUrl(path: string): string {
+    return path.startsWith('http') ? path : `${this.baseUrl}${path.startsWith('/') ? '' : '/'}${path}`;
   }
 
   /**

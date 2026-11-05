@@ -79,6 +79,9 @@ describe('Places', () => {
   const replacePlaceAttributes = vi.fn();
   const getPlaceMenu = vi.fn();
   const replacePlaceMenu = vi.fn();
+  const uploadPlacePhoto = vi.fn();
+  const deletePlacePhoto = vi.fn();
+  const photoUrl = vi.fn((path: string) => `http://api.test${path}`);
 
   const ATTRIBUTES = [
     { coPlaceAttribute: '44444444-4444-4444-8444-444444444444', code: 'terraza', name: 'Terraza', status: 'ACTIVE' as const },
@@ -107,6 +110,14 @@ describe('Places', () => {
     replacePlaceAttributes.mockReset().mockResolvedValue(undefined);
     getPlaceMenu.mockReset().mockResolvedValue([]);
     replacePlaceMenu.mockReset().mockResolvedValue(undefined);
+    uploadPlacePhoto.mockReset().mockResolvedValue({
+      coPhoto: 'ph1',
+      url: '/media/places/pl-1/a.jpg',
+      type: 'COVER',
+      order: 0,
+    });
+    deletePlacePhoto.mockReset().mockResolvedValue(undefined);
+    photoUrl.mockClear();
 
     TestBed.configureTestingModule({
       imports: [Places],
@@ -133,6 +144,9 @@ describe('Places', () => {
             replacePlaceAttributes,
             getPlaceMenu,
             replacePlaceMenu,
+            uploadPlacePhoto,
+            deletePlacePhoto,
+            photoUrl,
             getAdminPlace: vi.fn(),
           },
         },
@@ -223,6 +237,9 @@ describe('Places', () => {
             replacePlaceAttributes,
             getPlaceMenu,
             replacePlaceMenu,
+            uploadPlacePhoto,
+            deletePlacePhoto,
+            photoUrl,
             getAdminPlace: vi.fn(),
           },
         },
@@ -383,6 +400,73 @@ describe('Places', () => {
       { name: 'Cena', description: null, items: [{ name: 'Arepa', description: null, price: 4.5, currency: 'USD' }] },
       { name: 'Postres', description: null, items: [] },
     ]);
+  });
+
+  it('uploads a cover and shows the preview through the API origin', async () => {
+    const { element, fixture } = await render();
+    await openFirst(element, fixture);
+    await tick();
+    fixture.detectChanges();
+
+    const input = inDialog<HTMLInputElement>('input[type="file"]')[0]!;
+    const file = new File(['bytes'], 'fachada.jpg', { type: 'image/jpeg' });
+    Object.defineProperty(input, 'files', { value: [file], configurable: true });
+    input.dispatchEvent(new Event('change'));
+    await tick();
+    await tick();
+    fixture.detectChanges();
+
+    // The type travels as the form field the API documents, not as a query parameter.
+    expect(uploadPlacePhoto).toHaveBeenCalledWith('pl-1', file, 'COVER');
+    const img = inDialog<HTMLImageElement>('.thumb img')[0]!;
+    expect(img.getAttribute('src')).toBe('http://api.test/media/places/pl-1/a.jpg');
+  });
+
+  it('refuses an oversized file before the round trip', async () => {
+    const { element, fixture } = await render();
+    await openFirst(element, fixture);
+    await tick();
+    fixture.detectChanges();
+
+    const input = inDialog<HTMLInputElement>('input[type="file"]')[0]!;
+    const big = new File(['x'], 'huge.jpg', { type: 'image/jpeg' });
+    Object.defineProperty(big, 'size', { value: 6 * 1024 * 1024, configurable: true });
+    Object.defineProperty(input, 'files', { value: [big], configurable: true });
+    input.dispatchEvent(new Event('change'));
+    await tick();
+    fixture.detectChanges();
+
+    expect(uploadPlacePhoto).not.toHaveBeenCalled();
+    expect(inDialog<HTMLElement>('[role="alert"]')[0]!.textContent).toContain('too_long');
+  });
+
+  it('removes a photo it uploaded', async () => {
+    const { element, fixture } = await render();
+    await openFirst(element, fixture);
+    await tick();
+    fixture.detectChanges();
+
+    const input = inDialog<HTMLInputElement>('input[type="file"]')[1]!;
+    const file = new File(['bytes'], 'sala.jpg', { type: 'image/png' });
+    Object.defineProperty(input, 'files', { value: [file], configurable: true });
+    uploadPlacePhoto.mockResolvedValue({
+      coPhoto: 'ph2',
+      url: '/media/places/pl-1/b.png',
+      type: 'GALLERY',
+      order: 1,
+    });
+    input.dispatchEvent(new Event('change'));
+    await tick();
+    await tick();
+    fixture.detectChanges();
+
+    const remove = [...inDialog<HTMLButtonElement>('.thumb button')][0]!;
+    remove.click();
+    await tick();
+    await tick();
+
+    expect(deletePlacePhoto).toHaveBeenCalledWith('pl-1', 'ph2');
+    expect(inDialog('.thumb')).toHaveLength(0);
   });
 
   it('confirms before retiring a place, and only offers it with place.delete', async () => {

@@ -462,6 +462,57 @@ export interface paths {
         patch: operations["updateReview"];
         trace?: never;
     };
+    "/v1/admin/places/{coPlace}/photos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Upload an image for a place
+         * @description Requires `place.update`, scoped by ownership. `multipart/form-data` with `file` (max
+         *     5 MB), an optional `type` (`COVER` | `GALLERY`, default `GALLERY`) and an optional
+         *     `order`.
+         *
+         *     The bytes are verified by content, not by the declared header: a renamed executable is
+         *     rejected with field `file`. Uploading a `COVER` retires the previous one, because "make
+         *     this the cover" is what a client means — and the database enforces a single live cover
+         *     anyway.
+         *
+         *     Storage is a local named volume today; the same endpoints will keep working when the
+         *     storage implementation becomes S3.
+         */
+        post: operations["uploadPlacePhoto"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/places/{coPlace}/photos/{coPhoto}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Retire an image
+         * @description Requires `place.update`, scoped by ownership. Logical: the row stays so an audit can see
+         *     what was published.
+         */
+        delete: operations["removePlacePhoto"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admin/places/{coPlace}/menu": {
         parameters: {
             query?: never;
@@ -1477,6 +1528,15 @@ export interface components {
              */
             scheduledAt?: string | null;
             partySize?: number;
+        };
+        PlacePhoto: {
+            /** Format: uuid */
+            coPhoto: string;
+            /** @description Path under the API origin */
+            url: string;
+            /** @enum {string} */
+            type: "COVER" | "GALLERY";
+            order: number;
         };
         PlaceMenu: {
             /** @example Cena */
@@ -2607,6 +2667,69 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             422: components["responses"]["ValidationError"];
+        };
+    };
+    uploadPlacePhoto: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                coPlace: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /** Format: binary */
+                    file: string;
+                    /**
+                     * @default GALLERY
+                     * @enum {string}
+                     */
+                    type?: "COVER" | "GALLERY";
+                    /** @default 0 */
+                    order?: number;
+                };
+            };
+        };
+        responses: {
+            /** @description Stored and recorded. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlacePhoto"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    removePlacePhoto: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                coPlace: string;
+                coPhoto: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Retired. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
         };
     };
     getPlaceMenu: {
