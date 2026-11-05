@@ -1,57 +1,84 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { computed, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthService, type Me } from '../../core/auth.service';
+import { AdminApi, type AdminPlace } from '../../core/admin-api';
 import { Places } from './places';
-import { PlacesStore, PLACE_SEED } from './places.store';
 
-/** A store owner: the panel opens, but only their own venues are theirs to edit. */
-const OWNER: Me = {
-  id: 'u-ana',
-  name: 'Ana Rondón',
-  email: 'ana@melia.test',
-  status: 'ACTIVE',
-  email_verified_at: '2026-03-15T10:00:00Z',
-  roles: ['OWNER'],
-  permissions: ['admin.access', 'place.update', 'menu.manage'],
-  created_at: '2026-03-15T10:00:00Z',
-};
+function me(permissions: string[]): Me {
+  return {
+    id: 'u-ana',
+    name: 'Ana Rondón',
+    email: 'ana@melia.test',
+    status: 'ACTIVE',
+    email_verified_at: '2026-03-15T10:00:00Z',
+    roles: ['OWNER'],
+    permissions,
+    created_at: '2026-03-15T10:00:00Z',
+  };
+}
 
-/** The platform team: sees every venue, creates, deletes and reassigns. */
-const PLATFORM: Me = {
-  id: 'u-ivan',
-  name: 'Ivan Are',
-  email: 'ivan@melia.test',
-  status: 'ACTIVE',
-  email_verified_at: '2026-03-01T10:00:00Z',
-  roles: ['SUPERADMIN'],
-  permissions: [
-    'admin.access',
-    'user.read',
-    'user.manage',
-    'role.manage',
-    'place.create',
-    'place.update',
-    'place.delete',
-    'menu.manage',
-    'review.moderate',
-    'route.manage',
-  ],
-  created_at: '2026-03-01T10:00:00Z',
-};
+/** The platform team: sees the whole catalogue, creates, deletes and reassigns. */
+const PLATFORM = me(['admin.access', 'place.update', 'place.delete', 'place.manage_all']);
+/** A store owner: sees only its own rows, which the server already scoped. */
+const OWNER = me(['admin.access', 'place.update']);
 
-const OTHERS = PLACE_SEED.filter((place) => place.owner !== null && place.owner.id !== OWNER.id);
-const MINE = PLACE_SEED.filter((place) => place.owner?.id === OWNER.id);
+const PLACES: AdminPlace[] = [
+  {
+    coPlace: 'pl-1',
+    coOwnerUser: 'u-ana',
+    name: 'Inversiones Melia C.A.',
+    title: 'Melia Centro',
+    description: 'Hotel boutique en el centro.',
+    category: { id: '11111111-1111-4111-8111-111111111111', name: 'Hotel' },
+    country: 'VE',
+    region: 'Distrito Capital',
+    timezone: 'America/Caracas',
+    latitude: 10.480594,
+    longitude: -66.903606,
+    address: 'Av. Bolívar 45',
+    status: 'ACTIVE',
+    createdAt: '2026-03-15T10:00:00Z',
+    updatedAt: '2026-11-01T09:40:00Z',
+    deletedAt: null,
+  },
+  {
+    coPlace: 'pl-2',
+    coOwnerUser: null,
+    name: 'Ruta del Café',
+    title: 'Ruta del Café',
+    description: null,
+    category: { id: '22222222-2222-4222-8222-222222222222', name: 'Café' },
+    country: 'VE',
+    region: null,
+    timezone: 'America/Caracas',
+    latitude: 10.5055,
+    longitude: -66.8991,
+    address: null,
+    status: 'SUSPENDED',
+    createdAt: '2026-03-16T10:00:00Z',
+    updatedAt: '2026-10-27T14:00:00Z',
+    deletedAt: null,
+  },
+];
 
-/** One macrotask: drains the microtasks chained off a resolved promise. */
 const tick = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
 
 describe('Places', () => {
-  const me = signal<Me | null>(null);
+  const current = signal<Me | null>(PLATFORM);
+  const listAdminPlaces = vi.fn();
+  const updateAdminPlace = vi.fn();
+  const createAdminPlace = vi.fn();
+  const deleteAdminPlace = vi.fn();
 
   beforeEach(() => {
     TestBed.resetTestingModule();
-    me.set(PLATFORM);
+    current.set(PLATFORM);
+    listAdminPlaces.mockReset().mockResolvedValue({ data: PLACES, page: 1, limit: 6, total: 2 });
+    updateAdminPlace.mockReset().mockResolvedValue(PLACES[0]);
+    createAdminPlace.mockReset().mockResolvedValue(PLACES[0]);
+    deleteAdminPlace.mockReset().mockResolvedValue(undefined);
 
     TestBed.configureTestingModule({
       imports: [Places],
@@ -59,34 +86,40 @@ describe('Places', () => {
         {
           provide: AuthService,
           useValue: {
-            user: me.asReadonly(),
-            permissions: computed(() => me()?.permissions ?? []),
+            user: current.asReadonly(),
+            permissions: computed(() => current()?.permissions ?? []),
           },
+        },
+        {
+          provide: AdminApi,
+          useValue: { listAdminPlaces, updateAdminPlace, createAdminPlace, deleteAdminPlace, getAdminPlace: vi.fn() },
         },
       ],
     });
   });
 
   afterEach(() => {
-    // The dialog is portalled to <body>; leaving it behind leaks into the next test.
     document.body
       .querySelectorAll('.cdk-overlay-container, .ant-modal-root')
       .forEach((node) => node.remove());
   });
 
+  async function render(): Promise<{
+    element: HTMLElement;
+    fixture: ReturnType<typeof TestBed.createComponent<Places>>;
+  }> {
+    const fixture = TestBed.createComponent(Places);
+    fixture.detectChanges();
+    await tick();
+    fixture.detectChanges();
+    return { element: fixture.nativeElement as HTMLElement, fixture };
+  }
+
   function inDialog<T extends Element>(selector: string): NodeListOf<T> {
     return document.body.querySelectorAll<T>(selector);
   }
 
-  function dialogButton(text: string): HTMLButtonElement {
-    const found = [...inDialog<HTMLButtonElement>('button')].find(
-      (button) => button.textContent?.trim() === text,
-    );
-    if (!found) throw new Error(`no dialog button labelled "${text}"`);
-    return found;
-  }
-
-  function buttonByText(root: HTMLElement, text: string): HTMLButtonElement {
+  function buttonIn(root: ParentNode, text: string): HTMLButtonElement {
     const found = [...root.querySelectorAll('button')].find(
       (button) => button.textContent?.trim() === text,
     );
@@ -94,208 +127,138 @@ describe('Places', () => {
     return found as HTMLButtonElement;
   }
 
-  /** The toolbar lives inside the fixture, so the search field is read from it. */
-  function setSearch(root: HTMLElement, value: string): void {
-    const field = root.querySelector<HTMLInputElement>('#places-search');
-    if (!field) throw new Error('no search field');
-    field.value = value;
-    field.dispatchEvent(new Event('input'));
-  }
-
-  async function render(): Promise<{
-    element: HTMLElement;
-    fixture: ReturnType<typeof TestBed.createComponent<Places>>;
-    store: PlacesStore;
-  }> {
-    const fixture = TestBed.createComponent(Places);
-    fixture.detectChanges();
-    await tick();
-    fixture.detectChanges();
-    return {
-      element: fixture.nativeElement as HTMLElement,
-      fixture,
-      store: TestBed.inject(PlacesStore),
-    };
-  }
-
-  function setDialogValue(selector: string, value: string): void {
-    const field = inDialog<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(selector)[0];
-    if (!field) throw new Error(`no dialog field "${selector}"`);
-    field.value = value;
-    field.dispatchEvent(new Event('input'));
-    field.dispatchEvent(new Event('change'));
-  }
-
-  async function openFirstCard(
+  async function openFirst(
     element: HTMLElement,
     fixture: { detectChanges: () => void },
   ): Promise<void> {
-    buttonByText(element, 'Edit record').click();
+    buttonIn(element, 'Edit record').click();
     fixture.detectChanges();
     await tick();
     fixture.detectChanges();
   }
 
-  it('shows every venue with its owner to a platform session, and offers creation', async () => {
+  it('renders exactly the rows the server scoped, with their status', async () => {
     const { element } = await render();
 
-    // Six per page is the density the chosen direction accepts; the pager states the rest.
-    expect(element.querySelectorAll('article.place')).toHaveLength(6);
-    expect(element.textContent).toContain('1–6 of 9');
-    expect(element.textContent).toContain('ana@melia.test');
-    expect(element.textContent).toContain('curated by the platform');
-    expect(() => buttonByText(element, 'New place')).not.toThrow();
+    // Scope is the server's job: the screen must not filter by ownership again.
+    expect(element.querySelectorAll('article.place')).toHaveLength(PLACES.length);
+    expect(element.textContent).toContain('Melia Centro');
+    expect(element.textContent).toContain('ACTIVE');
+    expect(element.textContent).toContain('SUSPENDED');
+    expect(listAdminPlaces).toHaveBeenCalledWith(
+      expect.objectContaining({ page: 1, limit: 6 }),
+    );
   });
 
-  it('shows an owner only their own venues and none of the platform actions', async () => {
-    me.set(OWNER);
-    const { element } = await render();
+  it('offers creation only with place.manage_all', async () => {
+    const platform = await render();
+    expect(() => buttonIn(platform.element, 'New place')).not.toThrow();
 
-    expect(element.querySelectorAll('article.place')).toHaveLength(MINE.length);
-    expect(element.textContent).toContain(MINE[0]!.title);
-
-    for (const other of OTHERS) {
-      expect(element.textContent).not.toContain(other.title);
-      if (other.owner?.email) expect(element.textContent).not.toContain(other.owner.email);
-    }
-
-    // No creation and no ownership filter: both are platform capabilities.
-    const labels = [...element.querySelectorAll('button')].map((button) => button.textContent?.trim());
+    TestBed.resetTestingModule();
+    current.set(OWNER);
+    TestBed.configureTestingModule({
+      imports: [Places],
+      providers: [
+        {
+          provide: AuthService,
+          useValue: {
+            user: current.asReadonly(),
+            permissions: computed(() => current()?.permissions ?? []),
+          },
+        },
+        {
+          provide: AdminApi,
+          useValue: { listAdminPlaces, updateAdminPlace, createAdminPlace, deleteAdminPlace, getAdminPlace: vi.fn() },
+        },
+      ],
+    });
+    const owner = await render();
+    const labels = [...owner.element.querySelectorAll('button')].map((b) => b.textContent?.trim());
     expect(labels).not.toContain('New place');
-    expect(element.textContent).not.toContain('Unowned');
   });
 
-  it('opens the dialog with the venue values and saves the edited fields', async () => {
-    const { element, fixture, store } = await render();
-    const update = vi.spyOn(store, 'update');
-    const first = PLACE_SEED[0]!;
+  it('sends the owner only when the session may manage the catalogue', async () => {
+    const { element, fixture } = await render();
+    await openFirst(element, fixture);
 
-    await openFirstCard(element, fixture);
-
-    expect(inDialog<HTMLInputElement>('#place-title')[0]!.value).toBe(first.title);
-
-    setDialogValue('#place-title', 'Melia Centro Renovado');
-    setDialogValue('#place-desc', 'Recién reformado.');
-    setDialogValue('#place-addr', 'Av. Bolívar 46');
-    setDialogValue('#place-lat', '10.5');
-    setDialogValue('#place-lng', '-66.9');
-    setDialogValue('#place-ig', '@melia.centro');
-
-    dialogButton('Save changes').click();
+    expect(inDialog('#place-owner').length).toBe(1);
+    buttonIn(document.body, 'Save changes').click();
     await tick();
-    fixture.detectChanges();
 
-    expect(update).toHaveBeenCalledWith(
-      first.id,
-      expect.objectContaining({
-        title: 'Melia Centro Renovado',
-        description: 'Recién reformado.',
-        address: 'Av. Bolívar 46',
-        latitude: 10.5,
-        longitude: -66.9,
-        social: expect.objectContaining({ instagram: '@melia.centro' }),
-      }),
+    expect(updateAdminPlace).toHaveBeenCalledWith(
+      'pl-1',
+      expect.objectContaining({ coOwnerUser: 'u-ana' }),
     );
-    // The card re-reads the store, so the change is visible without a reload.
-    expect(element.textContent).toContain('Melia Centro Renovado');
   });
 
-  it('refuses to save without a commercial title', async () => {
-    const { element, fixture, store } = await render();
-    const update = vi.spyOn(store, 'update');
-
-    await openFirstCard(element, fixture);
-    setDialogValue('#place-title', '');
-    dialogButton('Save changes').click();
-    await tick();
-    fixture.detectChanges();
-
-    expect(update).not.toHaveBeenCalled();
-    const alert = inDialog<HTMLElement>('[role="alert"]');
-    expect(alert.length).toBeGreaterThan(0);
-    expect(alert[0]!.textContent).toContain('title');
-  });
-
-  it('refuses a latitude outside the range the database accepts', async () => {
-    const { element, fixture, store } = await render();
-    const update = vi.spyOn(store, 'update');
-
-    await openFirstCard(element, fixture);
-    setDialogValue('#place-lat', '120');
-    dialogButton('Save changes').click();
-    await tick();
-    fixture.detectChanges();
-
-    expect(update).not.toHaveBeenCalled();
-    expect(inDialog<HTMLElement>('[role="alert"]')[0]!.textContent).toContain('Latitude');
-  });
-
-  it('narrows the grid with the search box and says when nothing matches', async () => {
+  it('never sends the owner without place.manage_all', async () => {
+    current.set(OWNER);
     const { element, fixture } = await render();
+    await openFirst(element, fixture);
 
-    setSearch(element, 'miramar');
-    fixture.detectChanges();
+    expect(inDialog('#place-owner').length).toBe(0);
+    buttonIn(document.body, 'Save changes').click();
     await tick();
 
-    expect(element.querySelectorAll('article.place')).toHaveLength(1);
-    expect(element.textContent).toContain('Hotel Miramar');
-
-    setSearch(element, 'zzzz no existe');
-    fixture.detectChanges();
-    await tick();
-
-    expect(element.querySelectorAll('article.place')).toHaveLength(0);
-    expect(element.textContent?.toLowerCase()).toContain('no venue matches');
+    const patch = updateAdminPlace.mock.calls.at(-1)?.[1] as Record<string, unknown>;
+    expect(patch).toBeDefined();
+    expect('coOwnerUser' in patch).toBe(false);
   });
 
-  it('reassigns a venue from a platform session and reflects it on the card', async () => {
-    const { element, fixture, store } = await render();
-    const update = vi.spyOn(store, 'update');
-    const unowned = PLACE_SEED.find((place) => place.owner === null)!;
+  it('confirms before retiring a place, and only offers it with place.delete', async () => {
+    const { element, fixture } = await render();
+    await openFirst(element, fixture);
 
-    // Narrow to that venue instead of relying on which page it lands on.
-    setSearch(element, unowned.title);
+    buttonIn(document.body, 'Delete place').click();
     fixture.detectChanges();
     await tick();
     fixture.detectChanges();
+    expect(deleteAdminPlace).not.toHaveBeenCalled();
 
-    await openFirstCard(element, fixture);
-
-    setDialogValue('#place-owner', OWNER.id);
-    dialogButton('Save changes').click();
+    buttonIn(document.body, 'Retire place').click();
     await tick();
-    fixture.detectChanges();
+    expect(deleteAdminPlace).toHaveBeenCalledWith('pl-1');
+  });
 
-    expect(update).toHaveBeenCalledWith(
-      unowned.id,
-      expect.objectContaining({ owner_id: OWNER.id }),
+  it('tells a 404 apart: it does not exist or it is not yours', async () => {
+    updateAdminPlace.mockRejectedValue(
+      new HttpErrorResponse({ status: 404, error: { error: { code: 'not_found' } } }),
     );
-    const card = element.querySelector('article.place');
-    expect(card?.textContent).toContain(OWNER.email);
-  });
-
-  it('hides the ownership and status controls from an owner session', async () => {
-    me.set(OWNER);
     const { element, fixture } = await render();
-
-    await openFirstCard(element, fixture);
-
-    expect(inDialog('#place-title')).toHaveLength(1);
-    // Reassigning a venue and suspending it are platform capabilities: the controls are
-    // absent, not disabled.
-    expect(inDialog('#place-owner')).toHaveLength(0);
-    expect(inDialog('#place-status')).toHaveLength(0);
-  });
-
-  it('switches to the table view with the same page of venues', async () => {
-    const { element, fixture } = await render();
-
-    buttonByText(element, 'Table').click();
-    fixture.detectChanges();
+    await openFirst(element, fixture);
+    buttonIn(document.body, 'Save changes').click();
     await tick();
+    await tick();
+    fixture.detectChanges();
 
-    const rows = element.querySelectorAll('table.panel-table tbody tr');
-    expect(rows).toHaveLength(6);
-    expect(element.textContent).toContain('Owner');
+    expect(document.body.textContent).toContain('does not exist or is not yours');
+    expect(document.body.textContent).not.toContain('permission');
+  });
+
+  it('sends status=DELETED as the listing filter', async () => {
+    const { element, fixture } = await render();
+
+    const status = element.querySelector<HTMLSelectElement>('#places-status')!;
+    status.value = 'DELETED';
+    status.dispatchEvent(new Event('change'));
+    await tick();
+    fixture.detectChanges();
+
+    expect(listAdminPlaces.mock.calls.at(-1)?.[0]).toMatchObject({ status: 'DELETED', page: 1 });
+  });
+
+  it('keeps the dialog open with the code when a save is rejected', async () => {
+    updateAdminPlace.mockRejectedValue(
+      new HttpErrorResponse({ status: 422, error: { error: { code: 'validation_failed' } } }),
+    );
+    const { element, fixture } = await render();
+    await openFirst(element, fixture);
+    buttonIn(document.body, 'Save changes').click();
+    await tick();
+    await tick();
+    fixture.detectChanges();
+
+    expect(document.body.textContent).toContain('validation_failed');
+    expect(inDialog('#place-title').length).toBe(1);
   });
 });

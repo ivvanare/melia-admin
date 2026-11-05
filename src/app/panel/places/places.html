@@ -1,142 +1,128 @@
 <section class="screen">
+  <!-- Declared before the table so the actions input sees the reference. -->
+  <ng-template #rowActions let-row>
+    <button nz-button nzSize="small" type="button" (click)="openEditor(row)">Edit record</button>
+  </ng-template>
+
   <div class="pagehead">
     <div>
       <h1>Places</h1>
       <p>{{ subtitle() }}</p>
     </div>
     <div class="head-actions">
-      <div class="viewtoggle" role="group" aria-label="How the venues are shown">
-        <button
-          type="button"
-          [class.on]="view() === 'cards'"
-          [attr.aria-pressed]="view() === 'cards'"
-          (click)="setView('cards')"
-        >
-          Cards
-        </button>
-        <button
-          type="button"
-          [class.on]="view() === 'table'"
-          [attr.aria-pressed]="view() === 'table'"
-          (click)="setView('table')"
-        >
-          Table
-        </button>
+      <div class="viewtoggle" role="group" aria-label="How the places are shown">
+        <button type="button" [class.on]="view() === 'cards'" (click)="setView('cards')">Cards</button>
+        <button type="button" [class.on]="view() === 'table'" (click)="setView('table')">Table</button>
       </div>
-      @if (canCreate()) {
-        <button class="btn primary" type="button" disabled title="The API for new venues does not exist yet">
-          New place
-        </button>
+      @if (canManageAll()) {
+        <button class="btn primary" type="button" (click)="openCreate()">New place</button>
       }
     </div>
   </div>
+
+  @if (listErrorCode(); as code) {
+    <div class="alert" role="alert">
+      <span>Could not load the places: <code>{{ code }}</code></span>
+      <button class="btn secondary" type="button" (click)="load()">Try again</button>
+    </div>
+  }
 
   <div class="toolbar">
     <label class="field">
-      <span class="sr-only">Search venues</span>
+      Search
       <input
         id="places-search"
         type="search"
-        placeholder="Search by title, name or address"
+        placeholder="Title, name or address"
         [value]="search()"
-        (input)="onSearch($any($event.target).value)"
+        (input)="search.set($any($event.target).value); apply()"
       />
     </label>
 
-    <div class="chips" role="group" aria-label="Filter by category">
-      <button
-        type="button"
-        class="chip"
-        [class.on]="category() === null && !onlyUnowned()"
-        (click)="onCategory(null); onlyUnowned.set(false)"
+    <label class="field narrow">
+      Listing
+      <select
+        id="places-status"
+        [value]="statusFilter()"
+        (change)="statusFilter.set($any($event.target).value); apply()"
       >
-        All
-      </button>
-      @for (name of categories(); track name) {
-        <button
-          type="button"
-          class="chip"
-          [class.on]="category() === name"
-          (click)="onCategory(name)"
-        >
-          {{ name }}
-        </button>
-      }
-      @if (isPlatform()) {
-        <button type="button" class="chip" [class.on]="onlyUnowned()" (click)="toggleUnowned()">
-          Unowned
-        </button>
-      }
-    </div>
+        @for (option of listStatuses; track option.value) {
+          <option [value]="option.value">{{ option.label }}</option>
+        }
+      </select>
+    </label>
+
+    <label class="field narrow">
+      Country
+      <input
+        id="places-country"
+        type="text"
+        placeholder="VE"
+        maxlength="2"
+        [value]="countryFilter()"
+        (input)="countryFilter.set($any($event.target).value); apply()"
+      />
+    </label>
+
+    <label class="field narrow">
+      Region
+      <input
+        id="places-region"
+        type="text"
+        placeholder="Distrito Capital"
+        [value]="regionFilter()"
+        (input)="regionFilter.set($any($event.target).value); apply()"
+      />
+    </label>
   </div>
 
   @if (view() === 'cards') {
-    @if (paged().length === 0) {
-      <p class="empty-state">
-        No venue matches this search. Clear it, or widen the category filter.
-      </p>
+    @if (rows().length === 0) {
+      <p class="empty-state">{{ emptyLabel() }}</p>
     } @else {
       <div class="grid">
-        @for (place of paged(); track place.id) {
+        @for (place of rows(); track place.coPlace) {
           <article class="place">
-            <div class="photo" [attr.data-category]="place.category">
-              <span
-                [class]="place.status === 'ACTIVE' ? 'tag ok' : 'tag warn'"
-              >
+            <div class="photo" [attr.data-category]="place.category.name">
+              <span [class]="place.status === 'ACTIVE' ? 'tag ok' : 'tag warn'">
                 {{ place.status }}
               </span>
-              @if (isPlatform()) {
-                <span class="tag ondark">
-                  {{ place.owner?.email ?? 'curated by the platform' }}
-                </span>
+              @if (canManageAll()) {
+                <span class="tag ondark">{{ ownerLabel(place) }}</span>
               }
-              <span class="cover">{{ place.cover ?? 'no cover photo' }}</span>
+              <span class="cover">{{ place.category.name }}</span>
             </div>
 
             <div class="body">
               <h2>{{ place.title }}</h2>
-              <p class="sub">{{ place.category }}@if (place.address) { · {{ place.address }} }</p>
+              <p class="sub">{{ place.category.name }}@if (place.address) { · {{ place.address }} }</p>
 
               @if (place.description) {
                 <p class="desc">{{ place.description }}</p>
               } @else {
-                <p class="desc missing">
-                  No description yet: the app shows an empty record.
-                </p>
+                <p class="desc missing">No description yet: the app shows an empty record.</p>
               }
 
-              @if (isPlatform()) {
-                <p class="owner">
-                  <span class="owner-initial" aria-hidden="true">
-                    {{ place.owner?.email?.[0]?.toUpperCase() ?? '–' }}
-                  </span>
-                  {{ place.owner?.email ?? 'curated by the platform' }}
-                </p>
+              @if (canManageAll()) {
+                <p class="owner">{{ ownerLabel(place) }}</p>
               }
             </div>
 
             <footer>
               <span class="when">{{ updatedLabel(place) }}</span>
-              <button class="btn ghost" type="button" (click)="openEditor(place)">
-                Edit record
-              </button>
+              <button class="btn ghost" type="button" (click)="openEditor(place)">Edit record</button>
             </footer>
           </article>
         }
       </div>
     }
   } @else {
-    <ng-template #placeActions let-place>
-      <button class="btn ghost" type="button" (click)="openEditor(place)">
-        Edit record
-      </button>
-    </ng-template>
     <app-data-table
-      [rows]="paged()"
-      [columns]="tableColumns"
-      caption="Venues with their category, owner and status"
-      empty="No venue matches this search."
-      [rowActions]="placeActions"
+      caption="Places with their category, status and owner"
+      [rows]="rows()"
+      [columns]="columns()"
+      [empty]="emptyLabel()"
+      [rowActions]="rowActions"
     />
   }
 
@@ -145,19 +131,14 @@
     <button class="btn secondary" type="button" [disabled]="page() === 1" (click)="previous()">
       Previous
     </button>
-    <button
-      class="btn secondary"
-      type="button"
-      [disabled]="page() >= pageCount()"
-      (click)="next()"
-    >
+    <button class="btn secondary" type="button" [disabled]="page() >= pageCount()" (click)="next()">
       Next
     </button>
   </div>
 
   <nz-modal
-    [nzVisible]="open()"
-    [nzTitle]="editing()?.title ?? 'Venue'"
+    [nzVisible]="editorOpen()"
+    [nzTitle]="editing()?.title ?? 'New place'"
     nzOkText="Save changes"
     nzCancelText="Cancel"
     [nzOkLoading]="saving()"
@@ -166,197 +147,230 @@
     (nzOnOk)="save()"
   >
     <ng-container *nzModalContent>
-      @if (editing(); as place) {
-        <app-dialog-shell
-          [lead]="editingLead()"
-          [errors]="errors()"
-          [errorCode]="saveErrorCode()"
-        >
-          <span slot="error-message">The venue was not saved:</span>
-          <div slot="left" class="col">
-              <fieldset>
-                <legend>Identity</legend>
+      <app-dialog-shell
+        [lead]="editing() ? (editing()?.coPlace ?? '') : 'A new place in the catalogue.'"
+        [errors]="errors()"
+      >
+        <div slot="left" class="col">
+          <fieldset>
+            <legend>Identity</legend>
 
-                <div class="field">
-                  <label for="place-name">Real / legal name</label>
-                  <input
-                    id="place-name"
-                    class="dialog-input"
-                    type="text"
-                    [value]="draft().name"
-                    [disabled]="saving()"
-                    (input)="patch('name', $any($event.target).value)"
-                  />
-                </div>
+            <div class="field">
+              <label for="place-name">Real / legal name</label>
+              <input
+                id="place-name"
+                class="dialog-input"
+                type="text"
+                [value]="draft().name"
+                [disabled]="saving()"
+                (input)="patch('name', $any($event.target).value)"
+              />
+            </div>
 
-                <div class="field">
-                  <label for="place-title">Commercial title</label>
-                  <input
-                    id="place-title"
-                    class="dialog-input"
-                    type="text"
-                    [value]="draft().title"
-                    [disabled]="saving()"
-                    (input)="patch('title', $any($event.target).value)"
-                  />
-                  <p class="hint">The name the app's user reads.</p>
-                </div>
+            <div class="field">
+              <label for="place-title">Commercial title</label>
+              <input
+                id="place-title"
+                class="dialog-input"
+                type="text"
+                [value]="draft().title"
+                [disabled]="saving()"
+                (input)="patch('title', $any($event.target).value)"
+              />
+              <p class="hint">The name the app's user reads.</p>
+            </div>
 
-                <div class="row">
-                  <div class="field">
-                    <label for="place-category">Category</label>
-                    <input
-                      id="place-category"
-                      class="dialog-input"
-                      type="text"
-                      [value]="draft().category"
-                      [disabled]="saving()"
-                      (input)="patch('category', $any($event.target).value)"
-                    />
-                  </div>
+            <div class="field">
+              <label for="place-desc">Public description</label>
+              <textarea
+                id="place-desc"
+                class="dialog-input"
+                rows="4"
+                [value]="draft().description"
+                [disabled]="saving()"
+                (input)="patch('description', $any($event.target).value)"
+              ></textarea>
+              <p class="hint">{{ draft().description.length }} / 2000 characters.</p>
+            </div>
 
-                  @if (isPlatform()) {
-                    <div class="field">
-                      <label for="place-status">Status</label>
-                      <select
-                        id="place-status"
-                        class="dialog-input"
-                        [value]="draft().status"
-                        [disabled]="saving()"
-                        (change)="patch('status', $any($event.target).value)"
-                      >
-                        <option value="ACTIVE">ACTIVE</option>
-                        <option value="SUSPENDED">SUSPENDED</option>
-                      </select>
-                    </div>
-                  }
-                </div>
-              </fieldset>
-
-              <fieldset>
-                <legend>Description</legend>
-                <div class="field">
-                  <label for="place-desc">Public text</label>
-                  <textarea
-                    id="place-desc"
-                    class="dialog-input"
-                    rows="4"
-                    [value]="draft().description"
-                    [disabled]="saving()"
-                    (input)="patch('description', $any($event.target).value)"
-                  ></textarea>
-                  <p class="hint">{{ draft().description.length }} / 600 characters.</p>
-                </div>
-              </fieldset>
-          </div>
-
-          <div slot="right" class="col">
-              <fieldset>
-                <legend>Location</legend>
-
-                <div class="field">
-                  <label for="place-addr">Address</label>
-                  <input
-                    id="place-addr"
-                    class="dialog-input"
-                    type="text"
-                    [value]="draft().address"
-                    [disabled]="saving()"
-                    (input)="patch('address', $any($event.target).value)"
-                  />
-                </div>
-
-                <div class="row">
-                  <div class="field">
-                    <label for="place-lat">Latitude</label>
-                    <input
-                      id="place-lat"
-                      class="dialog-input mono"
-                      type="text"
-                      inputmode="decimal"
-                      [value]="draft().latitude"
-                      [disabled]="saving()"
-                      (input)="patch('latitude', $any($event.target).value)"
-                    />
-                  </div>
-                  <div class="field">
-                    <label for="place-lng">Longitude</label>
-                    <input
-                      id="place-lng"
-                      class="dialog-input mono"
-                      type="text"
-                      inputmode="decimal"
-                      [value]="draft().longitude"
-                      [disabled]="saving()"
-                      (input)="patch('longitude', $any($event.target).value)"
-                    />
-                  </div>
-                </div>
-              </fieldset>
-
-              <fieldset>
-                <legend>Links</legend>
-
-                <div class="field">
-                  <label for="place-ig">Instagram</label>
-                  <input
-                    id="place-ig"
-                    class="dialog-input"
-                    type="text"
-                    [value]="draft().instagram"
-                    [disabled]="saving()"
-                    (input)="patch('instagram', $any($event.target).value)"
-                  />
-                </div>
-
-                <div class="field">
-                  <label for="place-web">Web</label>
-                  <input
-                    id="place-web"
-                    class="dialog-input"
-                    type="text"
-                    [value]="draft().web"
-                    [disabled]="saving()"
-                    (input)="patch('web', $any($event.target).value)"
-                  />
-                </div>
-              </fieldset>
-
-              @if (isPlatform()) {
-                <fieldset>
-                  <legend>Ownership · platform only</legend>
-                  <div class="field">
-                    <label for="place-owner">Owner</label>
-                    <select
-                      id="place-owner"
-                      class="dialog-input"
-                      [value]="draft().owner_id"
-                      [disabled]="saving()"
-                      (change)="patch('owner_id', $any($event.target).value)"
-                    >
-                      <option value="">Unassigned (curated by the platform)</option>
-                      @for (owner of owners; track owner.id) {
-                        <option [value]="owner.id">{{ owner.email ?? owner.id }}</option>
-                      }
-                    </select>
-                    <p class="hint">
-                      Reassigning changes who may edit this record, and it is written to the audit
-                      log.
-                    </p>
-                  </div>
-                </fieldset>
-              } @else {
-                <fieldset>
-                  <legend>What this session cannot do</legend>
-                  <p class="hint">
-                    Creating venues, deleting them and reassigning their owner belong to the
-                    platform. Ask an administrator for any of the three.
-                  </p>
-                </fieldset>
+            <div class="field">
+              <label for="place-category">Category id</label>
+              <input
+                id="place-category"
+                class="dialog-input mono"
+                type="text"
+                [value]="draft().categoryId"
+                [disabled]="saving()"
+                (input)="patch('categoryId', $any($event.target).value)"
+              />
+              @if (draft().categoryName) {
+                <p class="hint">Currently {{ draft().categoryName }}.</p>
               }
-          </div>
-        </app-dialog-shell>
-      }
+            </div>
+          </fieldset>
+        </div>
+
+        <div slot="right" class="col">
+          <fieldset>
+            <legend>Location</legend>
+
+            <div class="field">
+              <label for="place-addr">Address</label>
+              <input
+                id="place-addr"
+                class="dialog-input"
+                type="text"
+                [value]="draft().address"
+                [disabled]="saving()"
+                (input)="patch('address', $any($event.target).value)"
+              />
+            </div>
+
+            <div class="row">
+              <div class="field">
+                <label for="place-lat">Latitude</label>
+                <input
+                  id="place-lat"
+                  class="dialog-input mono"
+                  type="text"
+                  [value]="draft().latitude"
+                  [disabled]="saving()"
+                  (input)="patch('latitude', $any($event.target).value)"
+                />
+              </div>
+              <div class="field">
+                <label for="place-lng">Longitude</label>
+                <input
+                  id="place-lng"
+                  class="dialog-input mono"
+                  type="text"
+                  [value]="draft().longitude"
+                  [disabled]="saving()"
+                  (input)="patch('longitude', $any($event.target).value)"
+                />
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="field">
+                <label for="place-country">Country</label>
+                <input
+                  id="place-country"
+                  class="dialog-input mono"
+                  type="text"
+                  maxlength="2"
+                  [value]="draft().country"
+                  [disabled]="saving()"
+                  (input)="patch('country', $any($event.target).value)"
+                />
+              </div>
+              <div class="field">
+                <label for="place-region">Region</label>
+                <input
+                  id="place-region"
+                  class="dialog-input"
+                  type="text"
+                  [value]="draft().region"
+                  [disabled]="saving()"
+                  (input)="patch('region', $any($event.target).value)"
+                />
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="place-timezone">Timezone</label>
+              <input
+                id="place-timezone"
+                class="dialog-input mono"
+                type="text"
+                [value]="draft().timezone"
+                [disabled]="saving()"
+                (input)="patch('timezone', $any($event.target).value)"
+              />
+            </div>
+          </fieldset>
+
+          @if (canManageAll()) {
+            <fieldset>
+              <legend>Catalogue · platform only</legend>
+
+              <div class="field">
+                <label for="place-status">Status</label>
+                <select
+                  id="place-status"
+                  class="dialog-input"
+                  [value]="draft().status"
+                  [disabled]="saving()"
+                  (change)="patch('status', $any($event.target).value)"
+                >
+                  <option value="ACTIVE">ACTIVE</option>
+                  <option value="INACTIVE">INACTIVE</option>
+                  <option value="SUSPENDED">SUSPENDED</option>
+                </select>
+              </div>
+
+              <div class="field">
+                <label for="place-owner">Owner</label>
+                <input
+                  id="place-owner"
+                  class="dialog-input mono"
+                  type="text"
+                  placeholder="user id, empty for the platform"
+                  [value]="draft().ownerId"
+                  [disabled]="saving()"
+                  (input)="patch('ownerId', $any($event.target).value)"
+                />
+                <p class="hint">
+                  Reassignment is honoured only for a session that manages the catalogue, and it is
+                  written to the audit log.
+                </p>
+              </div>
+            </fieldset>
+          } @else {
+            <fieldset>
+              <legend>What this session cannot do</legend>
+              <p class="hint">
+                Creating places, retiring them and reassigning their owner belong to the platform.
+                You edit the records the server returns for you.
+              </p>
+            </fieldset>
+          }
+
+          @if (saveErrorCode(); as code) {
+            <p class="save-error" role="alert">{{ saveErrorMessage(code) }}</p>
+          }
+
+          @if (editing() && canDelete()) {
+            <button class="btn danger" type="button" (click)="askDelete(editing()!)">
+              Delete place
+            </button>
+          }
+        </div>
+      </app-dialog-shell>
+    </ng-container>
+  </nz-modal>
+
+  <nz-modal
+    [nzVisible]="deleteTarget() !== null"
+    nzTitle="Retire this place?"
+    nzOkText="Retire place"
+    nzCancelText="Keep it"
+    [nzOkLoading]="deleting()"
+    nzWidth="460px"
+    (nzOnCancel)="cancelDelete()"
+    (nzOnOk)="confirmDelete()"
+  >
+    <ng-container *nzModalContent>
+      <app-dialog-shell [errorCode]="deleteErrorCode()">
+        <span slot="error-message">The place was not retired: </span>
+        <div slot="left" class="col">
+          <p class="hint">
+            Retiring is a logical delete: the record stays here, and the place disappears from
+            discovery, reviews and check-ins. It does not delete the venue's history.
+          </p>
+        </div>
+        <div slot="right" class="col"></div>
+      </app-dialog-shell>
     </ng-container>
   </nz-modal>
 </section>

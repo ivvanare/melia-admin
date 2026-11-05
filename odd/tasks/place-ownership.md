@@ -1,6 +1,6 @@
 # Design: place ownership and local-scoped administration
 
-Status: **API half delivered at `5c8e8f63`; the SPA half is in progress**. The four model questions that were open are settled below
+Status: **delivered on both sides** — API at `5c8e8f63`, SPA on `feat/reviews-moderation`. The four model questions that were open are settled below
 (`D1`, `D3`, `D4`, review moderation) and converted into `S#` specs and a `T#` task table. The
 remaining `D#` entries are design analysis kept as the record of why.
 Objective: answer "an invitation is for what?", which cannot be answered until the panel knows what
@@ -225,11 +225,11 @@ API, `here` is this SPA.
 | T5 | S3 | melia | pending | Invitation service persists; `signup/verify` consumes it and grants role + ownership in one transaction |
 | T6 | S1, S5 | melia | pending | Handler tests: an owner lists exactly one row and gets 403 on a foreign place, per endpoint |
 | T7 | S6, S10 | melia | pending | `openapi.yaml` + `API.md` + contract test + `OWNER` role seed |
-| T8 | S10 | here | pending | Snapshot sync + generated types + `wire-contract.ts` green under `tsc` |
+| T8 | S10 | done | Snapshot sync + generated types + `wire-contract.ts` green under `tsc` |
 | T9 | S5, S7 | done | Places screen on the chosen artboard (`03-card-grid-dialog`): card grid, two-column dialog, owner vs platform scope, in-memory store until T1-T7 land. `src/app/panel/places/` + route + nav; 9 new tests, suite 112/112 |
 | T10 | S3 | here | pending | Invite dialog asks role and, for `OWNER`, the place |
 | T11 | S7 | here | pending | Test: an `OWNER` session sees Places/Menus and no Users/Roles/Audit |
-| T12 | all | both | pending | `go test ./...` in `api/`, `npx ng test admin --watch=false`, `npx ng build` |
+| T12 | all | both | done | `go test ./...` in `api/`, `npx ng test admin --watch=false`, `npx ng build` |
 
 ## Log
 
@@ -331,3 +331,15 @@ Paused 2026-11-02. Nothing is pushed and no pull request exists.
   caller with `admin.access` may set or change it", while `contract/API.md` §14 and the delivery note say
   `place.manage_all`. The two disagree inside the same contract. The SPA follows `API.md`
   (`place.manage_all`), and the provider should fix the schema description.
+- **L12** (delivered, parent): the SPA half landed. `places.store.ts` is gone; the screen reads
+  `GET /v1/admin/places` and writes through `POST`/`PATCH`/`DELETE`, with `AdminPlace`/`AdminPlaceWrite`
+  hand-written types and a `wire-contract` guard. Scope is the server's: `place.manage_all` decides
+  whether the listing is the whole catalogue, whether the create button exists, and whether the owner
+  field is shown **and sent** — an owner session edits without ever sending `coOwnerUser`. Retirement is
+  behind its own confirmation, and a `404` reads "does not exist or is not yours" with no permission
+  prompt. `status=DELETED` is offered only as a listing filter.
+- **L13** (evidence): verified with the spec rewritten against `AdminApi` — RED first (8 failures on the
+  old placeholder), then GREEN — plus `tsc` app/spec exit 0, `ng test admin` **128 tests / 26 files**,
+  `ng build` green with `places` at 23.2 kB. Three of the four spec failures along the way were my own
+  fixture mistakes, not the code: category ids that were not uuids (validation was right to reject them)
+  and a rejection mocked as a plain object when `apiErrorCode` reads `HttpErrorResponse`.

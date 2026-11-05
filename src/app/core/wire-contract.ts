@@ -1,4 +1,4 @@
-import type { AdminReview, AuditEvent, Page, Permission, Role, UserSummary } from './admin-api';
+import type { AdminPlace, AdminReview, AuditEvent, Page, Permission, Role, UserSummary } from './admin-api';
 import type { components } from './generated/api-types';
 
 /**
@@ -22,6 +22,7 @@ export type RoleMatchesTheWire = Wire<Role, components['schemas']['Role']>;
 export type PermissionMatchesTheWire = Wire<Permission, components['schemas']['Permission']>;
 export type AuditEventMatchesTheWire = Wire<AuditEvent, components['schemas']['AuditEvent']>;
 export type AdminReviewMatchesTheWire = Wire<AdminReview, components['schemas']['Review']>;
+export type AdminPlaceMatchesTheWire = Wire<AdminPlace, components['schemas']['AdminPlace']>;
 
 /**
  * The list envelope is `Page<T>` here and `Page` in the contract, which carries only the counters;

@@ -1,263 +1,50 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzModalModule } from 'ng-zorro-antd/modal';
-import { AuthService } from '../../core/auth.service';
-import { DataTable, type DataTableColumn } from '../../shared/data-table/data-table';
-import { DialogShell } from '../../shared/dialog-shell/dialog-shell';
 import {
-  PlacesStore,
-  type Place,
-  type PlacePatch,
-  type PlaceSocial,
-  type PlaceStatus,
-} from './places.store';
+  AdminApi,
+  type AdminPlace,
+  type AdminPlaceListStatus,
+  type AdminPlaceStatus,
+  type AdminPlaceWrite,
+} from '../../core/admin-api';
+import { apiErrorCode } from '../../core/api-error';
+import { AuthService } from '../../core/auth.service';
+import { DataTable, type DataTableColumn, type DataTableTagVariant } from '../../shared/data-table/data-table';
+import { DialogShell } from '../../shared/dialog-shell/dialog-shell';
 
-/** Page size the chosen direction accepts: fewer venues, more identity per card. */
+/** Six per page is the density the chosen artboard accepts. */
 const PAGE_SIZE = 6;
+const MAX_DESCRIPTION = 2000;
 
-const MAX_DESCRIPTION = 600;
+const STATUS_TAG: Record<AdminPlaceStatus, DataTableTagVariant> = {
+  ACTIVE: 'ok',
+  INACTIVE: 'neutral',
+  SUSPENDED: 'warn',
+};
 
-type View = 'cards' | 'table';
+/** The listing filter: `DELETED` is not a place status, it selects the logically retired rows. */
+const LIST_STATUSES: readonly { value: string; label: string }[] = [
+  { value: '', label: 'Live catalogue' },
+  { value: 'ACTIVE', label: 'ACTIVE' },
+  { value: 'INACTIVE', label: 'INACTIVE' },
+  { value: 'DELETED', label: 'DELETED (retired)' },
+];
 
-/**
- * The dialog's working copy. Kept separate from the stored venue so cancelling leaves no
- * half-applied edit behind, and so a rejected save can keep what was typed.
- */
 interface Draft {
   name: string;
   title: string;
   description: string;
-  category: string;
-  status: PlaceStatus;
-  address: string;
+  categoryId: string;
+  categoryName: string;
+  country: string;
+  region: string;
+  timezone: string;
   latitude: string;
   longitude: string;
-  instagram: string;
-  web: string;
-  owner_id: string;
-}
-
-/**
- * Places screen (T9), on the `03-card-grid-dialog` artboard: a card grid that reads like the
- * app's own catalogue, and a two-column dialog — the same ng-zorro dialog idiom the Users and
- * Roles screens already use.
- *
- * Two sessions share this one screen. What an owner may do is decided *before* rendering:
- * `place.delete` marks a platform session (the catalogue has no `place.assign` yet, so
- * reassignment rides on it until T7 adds the code), and `place.create` decides whether the
- * creation button exists at all. The list narrows by `owner.id`, which is the same boundary
- * the API will apply in T2 — the screen never claims authority the server does not grant.
- */
-@Component({
-  selector: 'app-places',
-  imports: [NzButtonModule, NzModalModule, DataTable, DialogShell],
-  templateUrl: './places.html',
-  styleUrl: './places.css',
-})
-export class Places {
-  private readonly auth = inject(AuthService);
-  private readonly store = inject(PlacesStore);
-
-  protected readonly places = this.store.places;
-  protected readonly owners = this.store.owners;
-
-  protected readonly search = signal('');
-  protected readonly category = signal<string | null>(null);
-  protected readonly onlyUnowned = signal(false);
-  protected readonly view = signal<View>('cards');
-  protected readonly page = signal(1);
-
-  /** A platform session sees and edits every venue; an owner sees only what is theirs. */
-  protected readonly isPlatform = computed(() =>
-    this.auth.permissions().includes('place.delete'),
-  );
-  protected readonly canCreate = computed(() => this.auth.permissions().includes('place.create'));
-
-  private readonly mine = computed(() => {
-    const userId = this.auth.user()?.id;
-    return this.places().filter((place) => place.owner?.id === userId);
-  });
-
-  protected readonly categories = computed(() => {
-    const seen = new Set<string>();
-    for (const place of this.scope()) seen.add(place.category);
-    return [...seen].sort((a, b) => a.localeCompare(b));
-  });
-
-  /** Everything this session may list, before the toolbar narrows it further. */
-  private readonly scope = computed(() => (this.isPlatform() ? this.places() : this.mine()));
-
-  protected readonly filtered = computed(() => {
-    const term = this.search().trim().toLowerCase();
-    const category = this.category();
-    const unowned = this.onlyUnowned() && this.isPlatform();
-
-    return this.scope()
-      .filter((place) => {
-        if (category && place.category !== category) return false;
-        if (unowned && place.owner !== null) return false;
-        if (term === '') return true;
-        return [place.title, place.name, place.category, place.address ?? '']
-          .join(' ')
-          .toLowerCase()
-          .includes(term);
-      })
-      .sort((a, b) => b.updated_at.localeCompare(a.updated_at));
-  });
-
-  protected readonly total = computed(() => this.filtered().length);
-  protected readonly pageCount = computed(() => Math.max(1, Math.ceil(this.total() / PAGE_SIZE)));
-
-  protected readonly paged = computed(() => {
-    const start = (this.page() - 1) * PAGE_SIZE;
-    return this.filtered().slice(start, start + PAGE_SIZE);
-  });
-
-  /** Text columns keep the base table reusable; the card view retains the richer status tag. */
-  protected readonly tableColumns: readonly DataTableColumn<Place>[] = [
-    { label: 'Title', value: (place) => place.title },
-    { label: 'Category', value: (place) => place.category },
-    { label: 'Address', value: (place) => place.address ?? '—', variant: 'muted' },
-    { label: 'Owner', value: (place) => place.owner?.email ?? 'platform', variant: 'mono' },
-    { label: 'Status', value: (place) => place.status },
-  ];
-
-  /** `1–6 de 9`: a range, so an empty list and a full last page both read honestly. */
-  protected readonly rangeLabel = computed(() => {
-    const total = this.total();
-    if (total === 0) return '0 of 0';
-    const start = (this.page() - 1) * PAGE_SIZE + 1;
-    const end = Math.min(this.page() * PAGE_SIZE, total);
-    return `${start}–${end} of ${total}`;
-  });
-
-  protected readonly subtitle = computed(() => {
-    const total = this.total();
-    return this.isPlatform()
-      ? `${total} ${total === 1 ? 'venue' : 'venues'} · every venue, with its owner`
-      : `${total} ${total === 1 ? 'venue' : 'venues'} · edit your own records; creating and deleting belong to the platform`;
-  });
-
-  // ---- dialog state -------------------------------------------------------
-
-  protected readonly open = signal(false);
-  protected readonly editing = signal<Place | null>(null);
-  protected readonly draft = signal<Draft>(emptyDraft());
-  protected readonly errors = signal<readonly string[]>([]);
-  protected readonly saving = signal(false);
-  protected readonly saveErrorCode = signal<string | null>(null);
-
-  /** The dialog names one venue: the notice above the form says which session is editing it. */
-  protected readonly editingIsMine = computed(() => {
-    const place = this.editing();
-    const userId = this.auth.user()?.id;
-    return place !== null && place.owner?.id === userId;
-  });
-
-  /** The shell takes text here so the modal's lead cannot become another markup escape hatch. */
-  protected readonly editingLead = computed(() => {
-    const place = this.editing();
-    if (!place) return '';
-    const suffix = this.editingIsMine()
-      ? ' · your venue'
-      : this.isPlatform()
-        ? ` · ${place.owner?.email ?? 'curated by the platform'}`
-        : '';
-    return `${place.id} · ${place.category}${suffix}`;
-  });
-
-  protected onSearch(value: string): void {
-    this.search.set(value);
-    // A narrowed list must not stay on a page that no longer exists.
-    this.page.set(1);
-  }
-
-  protected onCategory(value: string | null): void {
-    this.category.set(value);
-    this.page.set(1);
-  }
-
-  protected toggleUnowned(): void {
-    this.onlyUnowned.update((value) => !value);
-    this.page.set(1);
-  }
-
-  protected setView(view: View): void {
-    this.view.set(view);
-  }
-
-  protected previous(): void {
-    this.page.update((page) => Math.max(1, page - 1));
-  }
-
-  protected next(): void {
-    this.page.update((page) => Math.min(this.pageCount(), page + 1));
-  }
-
-  protected openEditor(place: Place): void {
-    this.editing.set(place);
-    this.draft.set({
-      name: place.name,
-      title: place.title,
-      description: place.description ?? '',
-      category: place.category,
-      status: place.status,
-      address: place.address ?? '',
-      latitude: String(place.latitude),
-      longitude: String(place.longitude),
-      instagram: place.social.instagram ?? '',
-      web: place.social.web ?? '',
-      owner_id: place.owner?.id ?? '',
-    });
-    this.errors.set([]);
-    this.saveErrorCode.set(null);
-    this.open.set(true);
-  }
-
-  protected closeEditor(): void {
-    this.open.set(false);
-    this.editing.set(null);
-    this.errors.set([]);
-    this.saveErrorCode.set(null);
-  }
-
-  /** One field setter keeps the template free of `$event` plumbing. */
-  protected patch(field: keyof Draft, value: string): void {
-    this.draft.update((draft) => ({ ...draft, [field]: value }));
-  }
-
-  protected async save(): Promise<void> {
-    const place = this.editing();
-    if (!place || this.saving()) return;
-
-    const draft = this.draft();
-    const errors = validate(draft);
-    this.errors.set(errors);
-    if (errors.length > 0) {
-      // Stay open: closing would discard what the person typed.
-      this.saveErrorCode.set(null);
-      return;
-    }
-
-    this.saving.set(true);
-    this.saveErrorCode.set(null);
-    try {
-      await this.store.update(place.id, toPatch(draft, this.isPlatform()));
-      this.closeEditor();
-    } catch (error) {
-      this.saveErrorCode.set(error instanceof Error ? error.message : 'unknown_error');
-    } finally {
-      this.saving.set(false);
-    }
-  }
-
-  protected updatedLabel(place: Place): string {
-    const when = new Date(place.updated_at);
-    const stamp = Number.isNaN(when.getTime())
-      ? place.updated_at
-      : when.toISOString().slice(0, 10);
-    return place.updated_by ? `${stamp} · ${place.updated_by}` : stamp;
-  }
+  address: string;
+  status: AdminPlaceStatus;
+  ownerId: string;
 }
 
 function emptyDraft(): Draft {
@@ -265,30 +52,300 @@ function emptyDraft(): Draft {
     name: '',
     title: '',
     description: '',
-    category: '',
-    status: 'ACTIVE',
-    address: '',
+    categoryId: '',
+    categoryName: '',
+    country: 'VE',
+    region: '',
+    timezone: 'America/Caracas',
     latitude: '',
     longitude: '',
-    instagram: '',
-    web: '',
-    owner_id: '',
+    address: '',
+    status: 'ACTIVE',
+    ownerId: '',
+  };
+}
+
+function draftFrom(place: AdminPlace): Draft {
+  return {
+    name: place.name,
+    title: place.title,
+    description: place.description ?? '',
+    categoryId: place.category.id,
+    categoryName: place.category.name,
+    country: place.country,
+    region: place.region ?? '',
+    timezone: place.timezone,
+    latitude: String(place.latitude),
+    longitude: String(place.longitude),
+    address: place.address ?? '',
+    status: place.status,
+    ownerId: place.coOwnerUser ?? '',
   };
 }
 
 /**
- * The same rules the database enforces (`nu_latitude`/`nu_longitude` checks in
- * `04-core-tables.sql`), checked here so the dialog answers before a round trip.
+ * Places backoffice (T9), on the `03-card-grid-dialog` artboard.
+ *
+ * The server owns scope: with `place.manage_all` the listing is the whole catalogue, without it only
+ * the caller's own rows. So this screen never filters by ownership — doing that again here would be a
+ * second, silently divergent copy of an authorization rule.
+ *
+ * Two permissions shape the UI: `place.manage_all` adds creation, owner reassignment and the status
+ * control; `place.delete` adds the retirement action. `coOwnerUser` is only sent with
+ * `place.manage_all`, because the API ignores it silently rather than refusing it.
  */
+@Component({
+  selector: 'app-places',
+  imports: [DataTable, DialogShell, NzButtonModule, NzModalModule],
+  templateUrl: './places.html',
+  styleUrl: './places.css',
+})
+export class Places {
+  private readonly api = inject(AdminApi);
+  private readonly auth = inject(AuthService);
+
+  protected readonly rows = signal<readonly AdminPlace[]>([]);
+  protected readonly total = signal(0);
+  protected readonly page = signal(1);
+  protected readonly loading = signal(true);
+  protected readonly listErrorCode = signal<string | null>(null);
+
+  protected readonly search = signal('');
+  protected readonly statusFilter = signal('');
+  protected readonly countryFilter = signal('');
+  protected readonly regionFilter = signal('');
+  protected readonly listStatuses = LIST_STATUSES;
+
+  protected readonly view = signal<'cards' | 'table'>('cards');
+
+  protected readonly canManageAll = computed(() =>
+    this.auth.permissions().includes('place.manage_all'),
+  );
+  protected readonly canDelete = computed(() => this.auth.permissions().includes('place.delete'));
+
+  protected readonly pageCount = computed(() => Math.max(1, Math.ceil(this.total() / PAGE_SIZE)));
+
+  protected readonly rangeLabel = computed(() => {
+    const total = this.total();
+    if (total === 0) return '0 of 0';
+    const start = (this.page() - 1) * PAGE_SIZE + 1;
+    return `${start}–${Math.min(this.page() * PAGE_SIZE, total)} of ${total}`;
+  });
+
+  protected readonly subtitle = computed(() => {
+    const total = this.total();
+    return this.canManageAll()
+      ? `${total} ${total === 1 ? 'venue' : 'venues'} · whole catalogue, owner included`
+      : `${total} ${total === 1 ? 'venue' : 'venues'} · the server scopes this to your places`;
+  });
+
+  protected readonly emptyLabel = computed(() =>
+    this.loading() ? 'Loading places…' : 'No place matches these filters.',
+  );
+
+  /** The owner column exists only where the session can act on it. */
+  protected readonly columns = computed<readonly DataTableColumn<AdminPlace>[]>(() => {
+    const base: DataTableColumn<AdminPlace>[] = [
+      { label: 'Title', value: (row) => row.title },
+      { label: 'Category', value: (row) => row.category.name },
+      { label: 'Where', value: (row) => [row.region, row.country].filter(Boolean).join(', ') || row.country },
+      { label: 'Status', tag: (row) => ({ label: row.status, variant: STATUS_TAG[row.status] }) },
+      { label: 'Updated', value: (row) => row.updatedAt.slice(0, 10), variant: 'muted' },
+    ];
+    return this.canManageAll()
+      ? [
+          ...base,
+          {
+            label: 'Owner',
+            value: (row) => row.coOwnerUser ?? 'curated by the platform',
+            variant: 'mono',
+          },
+        ]
+      : base;
+  });
+
+  // ---- editor -------------------------------------------------------------
+
+  protected readonly editorOpen = signal(false);
+  protected readonly editing = signal<AdminPlace | null>(null);
+  protected readonly draft = signal<Draft>(emptyDraft());
+  protected readonly errors = signal<readonly string[]>([]);
+  protected readonly saving = signal(false);
+  protected readonly saveErrorCode = signal<string | null>(null);
+
+  // ---- retirement ---------------------------------------------------------
+
+  protected readonly deleteTarget = signal<AdminPlace | null>(null);
+  protected readonly deleting = signal(false);
+  protected readonly deleteErrorCode = signal<string | null>(null);
+
+  constructor() {
+    void this.load();
+  }
+
+  protected async load(): Promise<void> {
+    this.loading.set(true);
+    this.listErrorCode.set(null);
+    try {
+      const result = await this.api.listAdminPlaces({
+        page: this.page(),
+        limit: PAGE_SIZE,
+        q: this.search().trim() || null,
+        status: (this.statusFilter() as AdminPlaceListStatus | '') || null,
+        country: this.countryFilter().trim() || null,
+        region: this.regionFilter().trim() || null,
+      });
+      this.rows.set(result.data);
+      this.total.set(result.total);
+    } catch (error) {
+      this.listErrorCode.set(apiErrorCode(error));
+      this.rows.set([]);
+      this.total.set(0);
+    } finally {
+      this.loading.set(false);
+    }
+  }
+
+  protected apply(): void {
+    this.page.set(1);
+    void this.load();
+  }
+
+  protected previous(): void {
+    if (this.page() === 1) return;
+    this.page.update((page) => page - 1);
+    void this.load();
+  }
+
+  protected next(): void {
+    if (this.page() >= this.pageCount()) return;
+    this.page.update((page) => page + 1);
+    void this.load();
+  }
+
+  protected setView(view: 'cards' | 'table'): void {
+    this.view.set(view);
+  }
+
+  protected openCreate(): void {
+    this.editing.set(null);
+    this.draft.set(emptyDraft());
+    this.errors.set([]);
+    this.saveErrorCode.set(null);
+    this.editorOpen.set(true);
+  }
+
+  protected openEditor(place: AdminPlace): void {
+    this.editing.set(place);
+    this.draft.set(draftFrom(place));
+    this.errors.set([]);
+    this.saveErrorCode.set(null);
+    this.editorOpen.set(true);
+  }
+
+  protected closeEditor(): void {
+    this.editorOpen.set(false);
+    this.editing.set(null);
+    this.errors.set([]);
+    this.saveErrorCode.set(null);
+  }
+
+  protected patch(field: keyof Draft, value: string): void {
+    this.draft.update((draft) => ({ ...draft, [field]: value }));
+  }
+
+  protected async save(): Promise<void> {
+    if (this.saving()) return;
+    const draft = this.draft();
+    const errors = validate(draft);
+    this.errors.set(errors);
+    if (errors.length > 0) return;
+
+    this.saving.set(true);
+    this.saveErrorCode.set(null);
+    const editing = this.editing();
+    try {
+      const body = toWrite(draft, this.canManageAll());
+      if (editing) {
+        await this.api.updateAdminPlace(editing.coPlace, body);
+      } else {
+        await this.api.createAdminPlace(body);
+      }
+      await this.load();
+      this.closeEditor();
+    } catch (error) {
+      // Stay open: closing would discard the form and hide the reason.
+      this.saveErrorCode.set(apiErrorCode(error));
+    } finally {
+      this.saving.set(false);
+    }
+  }
+
+  protected askDelete(place: AdminPlace): void {
+    this.deleteErrorCode.set(null);
+    this.deleteTarget.set(place);
+  }
+
+  protected cancelDelete(): void {
+    this.deleteTarget.set(null);
+    this.deleteErrorCode.set(null);
+  }
+
+  /**
+   * Logical retirement: the row stays and leaves discovery, reviews and check-ins, which is why
+   * the confirmation says "retire" rather than promising the data is gone.
+   */
+  protected async confirmDelete(): Promise<void> {
+    const target = this.deleteTarget();
+    if (!target || this.deleting()) return;
+    this.deleting.set(true);
+    this.deleteErrorCode.set(null);
+    try {
+      await this.api.deleteAdminPlace(target.coPlace);
+      await this.load();
+      this.closeEditor();
+      this.cancelDelete();
+    } catch (error) {
+      this.deleteErrorCode.set(apiErrorCode(error));
+    } finally {
+      this.deleting.set(false);
+    }
+  }
+
+  /** A `404` is deliberate: it means the row does not exist *or* is not yours. */
+  protected saveErrorMessage(code: string): string {
+    return code === 'not_found'
+      ? 'That place does not exist or is not yours.'
+      : `The place was not saved: ${code}`;
+  }
+
+  protected updatedLabel(place: AdminPlace): string {
+    return place.updatedAt.slice(0, 10);
+  }
+
+  protected ownerLabel(place: AdminPlace): string {
+    return place.coOwnerUser ?? 'curated by the platform';
+  }
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 function validate(draft: Draft): readonly string[] {
   const errors: string[] = [];
-  if (draft.title.trim() === '') {
-    errors.push('The commercial title is required (title).');
+  if (draft.title.trim() === '') errors.push('The commercial title is required (title).');
+  if (draft.name.trim() === '') errors.push('The real or legal name is required (name).');
+  if (draft.timezone.trim() === '') errors.push('A timezone is required.');
+  if (!/^[A-Z]{2}$/.test(draft.country.trim())) {
+    errors.push('Country must be two uppercase letters, like VE.');
   }
-  if (draft.name.trim() === '') {
-    errors.push('The real or legal name is required (name).');
+  if (draft.categoryId.trim() !== '' && !UUID.test(draft.categoryId.trim())) {
+    errors.push('The category id must be a uuid.');
   }
-  if (Number.isNaN(Number(draft.latitude)) || Number(draft.latitude) < -90 || Number(draft.latitude) > 90) {
+  if (
+    Number.isNaN(Number(draft.latitude)) ||
+    Number(draft.latitude) < -90 ||
+    Number(draft.latitude) > 90
+  ) {
     errors.push('Latitude must be a number between -90 and 90.');
   }
   if (
@@ -304,30 +361,27 @@ function validate(draft: Draft): readonly string[] {
   return errors;
 }
 
-/** Empty text becomes `null`, never `''`: the column is nullable and the API distinguishes them. */
-function toPatch(draft: Draft, platform: boolean): PlacePatch {
-  const social: PlaceSocial = {};
-  if (draft.instagram.trim() !== '') social.instagram = draft.instagram.trim();
-  if (draft.web.trim() !== '') social.web = draft.web.trim();
-
-  const patch: PlacePatch = {
+/**
+ * Empty text becomes `null` where the column is nullable, so a cleared field actually clears it.
+ * `coOwnerUser` and `status` travel only for a session that may manage the catalogue.
+ */
+function toWrite(draft: Draft, manageAll: boolean): AdminPlaceWrite {
+  const body: AdminPlaceWrite = {
     name: draft.name.trim(),
     title: draft.title.trim(),
     description: draft.description.trim() === '' ? null : draft.description.trim(),
-    category: draft.category.trim(),
-    address: draft.address.trim() === '' ? null : draft.address.trim(),
+    country: draft.country.trim().toUpperCase(),
+    region: draft.region.trim() === '' ? null : draft.region.trim(),
+    timezone: draft.timezone.trim(),
     latitude: Number(draft.latitude),
     longitude: Number(draft.longitude),
-    social,
+    address: draft.address.trim() === '' ? null : draft.address.trim(),
   };
 
-  // Ownership and status are platform-only: an owner session has no control for either, so
-  // sending them would be a capability the UI pretends not to have.
-  if (platform) {
-    patch.status = draft.status;
-    patch.owner_id = draft.owner_id === '' ? null : draft.owner_id;
+  if (draft.categoryId.trim() !== '') body.coPlaceCategory = draft.categoryId.trim();
+  if (manageAll) {
+    body.status = draft.status;
+    body.coOwnerUser = draft.ownerId === '' ? null : draft.ownerId;
   }
-  return patch;
+  return body;
 }
-
-export { PAGE_SIZE, MAX_DESCRIPTION };

@@ -33,6 +33,59 @@ export interface Role {
   permissions: string[];
 }
 
+/** A place's own lifecycle, as the backoffice writes it. */
+export type AdminPlaceStatus = 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
+
+/**
+ * `status` on the listing is a **filter**, not a state: `DELETED` lists the logically retired
+ * rows, which is the only way to see them. It is never written onto a place.
+ */
+export type AdminPlaceListStatus = 'ACTIVE' | 'INACTIVE' | 'DELETED';
+
+/** `AdminPlace` in `api/openapi.yaml`. */
+export interface AdminPlace {
+  coPlace: string;
+  /** `null` for a place the backoffice curates itself. */
+  coOwnerUser: string | null;
+  /** Legal name, admin-only: never part of a public read. */
+  name: string;
+  title: string;
+  description: string | null;
+  category: { id: string; name: string };
+  /** ISO 3166-1 alpha-2, uppercase. */
+  country: string;
+  region: string | null;
+  timezone: string;
+  latitude: number;
+  longitude: number;
+  address: string | null;
+  status: AdminPlaceStatus;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+}
+
+/**
+ * `AdminPlaceWrite` in `api/openapi.yaml`. On a patch, an absent field means "unchanged" and an
+ * explicit `null` clears a nullable — so this type must stay `Partial`-shaped rather than carry
+ * defaults.
+ */
+export interface AdminPlaceWrite {
+  name?: string;
+  title?: string;
+  description?: string | null;
+  coPlaceCategory?: string;
+  country?: string;
+  region?: string | null;
+  timezone?: string;
+  latitude?: number;
+  longitude?: number;
+  address?: string | null;
+  status?: AdminPlaceStatus;
+  /** Honoured only for a caller with `place.manage_all`; silently ignored otherwise. */
+  coOwnerUser?: string | null;
+}
+
 export type ReviewStatus = 'ACTIVE' | 'INACTIVE' | 'MODERATED';
 
 /**
@@ -88,6 +141,14 @@ export interface UsersQuery extends PageQuery {
   /** Case-insensitive match on name or email. */
   q?: string | null;
   status?: UserStatus | null;
+}
+
+export interface AdminPlacesQuery extends PageQuery {
+  q?: string | null;
+  status?: AdminPlaceListStatus | null;
+  categoryId?: string | null;
+  country?: string | null;
+  region?: string | null;
 }
 
 export interface AdminReviewsQuery extends PageQuery {
@@ -177,6 +238,53 @@ export class AdminApi {
         `${this.baseUrl}/admin/users/${encodeURIComponent(userId)}/roles`,
         { roles },
       ),
+    );
+  }
+
+  /**
+   * The places backoffice. The server decides scope: with `place.manage_all` this returns the
+   * whole catalogue, without it only the caller's own places — so the screen never filters by
+   * ownership itself, or it would be re-implementing an authorization rule.
+   */
+  listAdminPlaces(query: AdminPlacesQuery): Promise<Page<AdminPlace>> {
+    return firstValueFrom(
+      this.http.get<Page<AdminPlace>>(`${this.baseUrl}/admin/places`, {
+        params: toParams({
+          page: query.page,
+          limit: query.limit,
+          q: query.q,
+          status: query.status,
+          categoryId: query.categoryId,
+          country: query.country,
+          region: query.region,
+        }),
+      }),
+    );
+  }
+
+  /** A row the caller may not see answers `404`, deliberately: a `403` would confirm it exists. */
+  getAdminPlace(coPlace: string): Promise<AdminPlace> {
+    return firstValueFrom(
+      this.http.get<AdminPlace>(`${this.baseUrl}/admin/places/${encodeURIComponent(coPlace)}`),
+    );
+  }
+
+  /** Creating and assigning an owner belong to `place.manage_all`. */
+  createAdminPlace(body: AdminPlaceWrite): Promise<AdminPlace> {
+    return firstValueFrom(this.http.post<AdminPlace>(`${this.baseUrl}/admin/places`, body));
+  }
+
+  /** Partial: absent means unchanged, `null` clears a nullable. */
+  updateAdminPlace(coPlace: string, body: AdminPlaceWrite): Promise<AdminPlace> {
+    return firstValueFrom(
+      this.http.patch<AdminPlace>(`${this.baseUrl}/admin/places/${encodeURIComponent(coPlace)}`, body),
+    );
+  }
+
+  /** Logical delete: the row stays and leaves discovery, reviews and check-ins. */
+  deleteAdminPlace(coPlace: string): Promise<void> {
+    return firstValueFrom(
+      this.http.delete<void>(`${this.baseUrl}/admin/places/${encodeURIComponent(coPlace)}`),
     );
   }
 
