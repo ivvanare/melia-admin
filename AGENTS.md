@@ -108,7 +108,7 @@ Rules that matter here:
 ## Discovery endpoints (in `melia`, not in `contract/` yet)
 
 The discovery and social routes are in `contract/`, pinned to a pushed commit of
-`feat/api-social-graph` (`597603f6`): `GET /v1/places` (list and map), the review routes,
+`feat/api-social-graph` (`9984ecba`): `GET /v1/places` (list and map), the review routes,
 `PATCH /v1/admin/reviews/{coReview}`, `/v1/follows` and the check-in route. The rule that matters when
 the API moves again: run `scripts/sync-contract.sh <commit>` only when that commit is **remote**, because
 the `contract` CI job fetches it from the API's repository; pinning an unpushed one turns the job red for
@@ -224,7 +224,14 @@ net votes) and **invitations** (`/v1/invitations`, host view, accept as `VIEWER`
 `revealed`). Both are mobile-domain features with no panel screen; they are in the snapshot only because
 the snapshot is the whole contract. Adding a panel surface for them is a product decision, not a gap.
 
-Two things are deliberately absent from the API and will not appear on their own: **notifications**
-(they need the mobile client to be meaningful) and **blocking** (`tb_block` plus filtering it in every
-viewer-relative projection is the public-launch gate for the social graph). The panel must not assume
-either exists.
+**Blocking** now exists (`POST/DELETE /v1/blocks`, `GET /v1/blocks`). It is not a panel feature, but it
+changes what the panel's data means: follow listings and review visibility exclude blocks **in both
+directions**, so a review can legitimately disappear from a result the panel is reading. The panel needs
+no code for it — and must not cache viewer-relative results across users because of it.
+
+**Notifications** remain absent by decision: they need the mobile client to be meaningful.
+
+One invariant worth checking whenever a list looks wrong: a page of rows and its `total` must agree. The
+API once answered `total=1` with zero rows under an active block; paginating that pages forever through
+empty results. If a total does not match the rows, report it to the API rather than compensating in the
+client — a client-side workaround hides a server bug instead of fixing it.
