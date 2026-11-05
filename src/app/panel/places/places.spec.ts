@@ -41,6 +41,11 @@ const PLACES: AdminPlace[] = [
     status: 'ACTIVE',
     createdAt: '2026-03-15T10:00:00Z',
     updatedAt: '2026-11-01T09:40:00Z',
+    rating: null,
+    schedules: [],
+    attributes: [],
+    menus: [],
+    photos: [],
     deletedAt: null,
   },
   {
@@ -59,6 +64,11 @@ const PLACES: AdminPlace[] = [
     status: 'SUSPENDED',
     createdAt: '2026-03-16T10:00:00Z',
     updatedAt: '2026-10-27T14:00:00Z',
+    rating: null,
+    schedules: [],
+    attributes: [],
+    menus: [],
+    photos: [],
     deletedAt: null,
   },
 ];
@@ -72,12 +82,10 @@ describe('Places', () => {
   const createAdminPlace = vi.fn();
   const deleteAdminPlace = vi.fn();
   const listPlaceCategories = vi.fn();
-  const getPlaceSchedules = vi.fn();
+  const getAdminPlace = vi.fn();
   const replacePlaceSchedules = vi.fn();
   const listPlaceAttributes = vi.fn();
-  const getPlaceAttributes = vi.fn();
   const replacePlaceAttributes = vi.fn();
-  const getPlaceMenu = vi.fn();
   const replacePlaceMenu = vi.fn();
   const uploadPlacePhoto = vi.fn();
   const deletePlacePhoto = vi.fn();
@@ -101,14 +109,17 @@ describe('Places', () => {
     createAdminPlace.mockReset().mockResolvedValue(PLACES[0]);
     deleteAdminPlace.mockReset().mockResolvedValue(undefined);
     listPlaceCategories.mockReset().mockResolvedValue(CATEGORIES);
-    getPlaceSchedules
-      .mockReset()
-      .mockResolvedValue([{ dayOfWeek: 1, open: '07:00', close: '22:00' }]);
+    getAdminPlace.mockReset().mockResolvedValue({
+      ...PLACES[0],
+      rating: null,
+      schedules: [{ dayOfWeek: 1, open: '07:00', close: '22:00' }],
+      attributes: ['terraza'],
+      menus: [],
+      photos: [],
+    });
     replacePlaceSchedules.mockReset().mockResolvedValue(undefined);
     listPlaceAttributes.mockReset().mockResolvedValue(ATTRIBUTES);
-    getPlaceAttributes.mockReset().mockResolvedValue(['terraza']);
     replacePlaceAttributes.mockReset().mockResolvedValue(undefined);
-    getPlaceMenu.mockReset().mockResolvedValue([]);
     replacePlaceMenu.mockReset().mockResolvedValue(undefined);
     uploadPlacePhoto.mockReset().mockResolvedValue({
       coPhoto: 'ph1',
@@ -137,17 +148,14 @@ describe('Places', () => {
             createAdminPlace,
             deleteAdminPlace,
             listPlaceCategories,
-            getPlaceSchedules,
+            getAdminPlace,
             replacePlaceSchedules,
             listPlaceAttributes,
-            getPlaceAttributes,
             replacePlaceAttributes,
-            getPlaceMenu,
             replacePlaceMenu,
             uploadPlacePhoto,
             deletePlacePhoto,
             photoUrl,
-            getAdminPlace: vi.fn(),
           },
         },
       ],
@@ -230,17 +238,14 @@ describe('Places', () => {
             createAdminPlace,
             deleteAdminPlace,
             listPlaceCategories,
-            getPlaceSchedules,
+            getAdminPlace,
             replacePlaceSchedules,
             listPlaceAttributes,
-            getPlaceAttributes,
             replacePlaceAttributes,
-            getPlaceMenu,
             replacePlaceMenu,
             uploadPlacePhoto,
             deletePlacePhoto,
             photoUrl,
-            getAdminPlace: vi.fn(),
           },
         },
       ],
@@ -325,7 +330,7 @@ describe('Places', () => {
     await tick();
     fixture.detectChanges();
 
-    expect(getPlaceSchedules).toHaveBeenCalledWith('pl-1');
+    expect(getAdminPlace).toHaveBeenCalledWith('pl-1');
     // Monday was stored, so only Monday is enabled.
     const toggles = [...inDialog<HTMLInputElement>('.day-toggle input')];
     expect(toggles).toHaveLength(7);
@@ -346,7 +351,14 @@ describe('Places', () => {
   });
 
   it('refuses a day whose opening and closing are the same time', async () => {
-    getPlaceSchedules.mockResolvedValue([{ dayOfWeek: 1, open: '09:00', close: '09:00' }]);
+    getAdminPlace.mockResolvedValue({
+      ...PLACES[0],
+      rating: null,
+      schedules: [{ dayOfWeek: 1, open: '09:00', close: '09:00' }],
+      attributes: [],
+      menus: [],
+      photos: [],
+    });
     const { element, fixture } = await render();
     await openFirst(element, fixture);
     await tick();
@@ -382,10 +394,17 @@ describe('Places', () => {
   });
 
   it('sends the whole menu, and accepts a section with no dishes', async () => {
-    getPlaceMenu.mockResolvedValue([
-      { name: 'Cena', description: null, items: [{ name: 'Arepa', description: null, price: 4.5, currency: 'USD' }] },
-      { name: 'Postres', description: null, items: [] },
-    ]);
+    getAdminPlace.mockResolvedValue({
+      ...PLACES[0],
+      rating: null,
+      schedules: [],
+      attributes: [],
+      menus: [
+        { name: 'Cena', description: null, items: [{ name: 'Arepa', description: null, price: 4.5, currency: 'USD' }] },
+        { name: 'Postres', description: null, items: [] },
+      ],
+      photos: [],
+    });
     const { element, fixture } = await render();
     await openFirst(element, fixture);
     await tick();
@@ -400,6 +419,31 @@ describe('Places', () => {
       { name: 'Cena', description: null, items: [{ name: 'Arepa', description: null, price: 4.5, currency: 'USD' }] },
       { name: 'Postres', description: null, items: [] },
     ]);
+  });
+
+  it('reads the existing gallery with the place detail', async () => {
+    getAdminPlace.mockResolvedValue({
+      ...PLACES[0],
+      rating: null,
+      schedules: [],
+      attributes: [],
+      menus: [],
+      photos: [
+        { coPhoto: 'ph-old', url: '/media/places/pl-1/old.jpg', type: 'COVER', order: 0 },
+        { coPhoto: 'ph-g', url: '/media/places/pl-1/g.jpg', type: 'GALLERY', order: 1 },
+      ],
+    });
+    const { element, fixture } = await render();
+    await openFirst(element, fixture);
+    await tick();
+    fixture.detectChanges();
+
+    // The whole dialog comes from one read, gallery included: without it the operator would
+    // see an empty strip and could not tell the place already had a cover.
+    const imgs = inDialog<HTMLImageElement>('.thumb img');
+    expect(imgs).toHaveLength(2);
+    expect(imgs[0]!.getAttribute('src')).toBe('http://api.test/media/places/pl-1/old.jpg');
+    expect(document.body.textContent).toContain('COVER');
   });
 
   it('uploads a cover and shows the preview through the API origin', async () => {

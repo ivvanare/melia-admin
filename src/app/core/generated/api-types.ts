@@ -1599,6 +1599,22 @@ export interface components {
             address: string | null;
             /** @enum {string} */
             status: "ACTIVE" | "INACTIVE" | "SUSPENDED";
+            /**
+             * @description The worker-published aggregate, when there is one. Null means nothing published yet,
+             *     never zero: the panel must tell an unrated place from a badly rated one.
+             */
+            rating: {
+                average: number;
+                count: number;
+            } | null;
+            /** @description The weekly hours. Populated by the detail read, not by the listing. */
+            schedules: components["schemas"]["PlaceSchedule"][];
+            /** @description Attribute codes present on the place. */
+            attributes: string[];
+            /** @description The card. Populated by the detail read, not by the listing. */
+            menus: components["schemas"]["PlaceMenu"][];
+            /** @description Images of the place, cover first. */
+            photos: components["schemas"]["PlacePhoto"][];
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */

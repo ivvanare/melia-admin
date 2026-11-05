@@ -173,11 +173,7 @@ export class Places {
   /** The menu being edited: sections, each with its dishes. Sent whole on save. */
   protected readonly menus = signal<readonly PlaceMenu[]>([]);
 
-  /**
-   * Photos already uploaded in this dialog. The contract exposes upload and delete but **no read**,
-   * so this list starts empty and only ever contains what this session uploaded; a reload cannot
-   * recover the gallery until a read route exists.
-   */
+  /** The place's photos, read with the rest of its detail. */
   protected readonly photos = signal<readonly PlacePhoto[]>([]);
   protected readonly uploading = signal(false);
   protected readonly photoErrorCode = signal<string | null>(null);
@@ -362,24 +358,29 @@ export class Places {
     this.errors.set([]);
     this.saveErrorCode.set(null);
     this.editorOpen.set(true);
-    void this.loadSchedules(place.coPlace);
-    void this.loadAttributesOf(place.coPlace);
-    void this.loadMenu(place.coPlace);
+    void this.loadDetail(place.coPlace);
   }
 
-  private async loadAttributesOf(coPlace: string): Promise<void> {
+  /**
+   * One read fills the whole dialog: the place detail carries its schedules, attribute codes, menu
+   * and photos. Asking four endpoints for the same row would be four chances to show a half-loaded
+   * form, and one of them — the gallery — had no route of its own at all.
+   */
+  private async loadDetail(coPlace: string): Promise<void> {
+    this.schedulesLoading.set(true);
     try {
-      this.draftCodes.set(await this.api.getPlaceAttributes(coPlace));
+      const place = await this.api.getAdminPlace(coPlace);
+      this.week.set(weekFrom(place.schedules));
+      this.draftCodes.set(place.attributes);
+      this.menus.set(place.menus);
+      this.photos.set(place.photos);
     } catch {
-      this.draftCodes.set([]);
-    }
-  }
-
-  private async loadMenu(coPlace: string): Promise<void> {
-    try {
-      this.menus.set(await this.api.getPlaceMenu(coPlace));
-    } catch {
-      this.menus.set([]);
+      // A failed read must not turn into "this place is closed all week and has no photos":
+      // the editor stays empty and says so instead of saving over data it never saw.
+      this.week.set(emptyWeek());
+      this.errors.set(['The place detail could not be loaded, so its content was left untouched.']);
+    } finally {
+      this.schedulesLoading.set(false);
     }
   }
 
@@ -507,20 +508,6 @@ export class Places {
           : menu,
       ),
     );
-  }
-
-  private async loadSchedules(coPlace: string): Promise<void> {
-    this.schedulesLoading.set(true);
-    try {
-      this.week.set(weekFrom(await this.api.getPlaceSchedules(coPlace)));
-    } catch {
-      // Without the stored week the editor would silently save "closed all week": keep it
-      // disabled and say so instead of guessing.
-      this.week.set(emptyWeek());
-      this.errors.set(['The opening hours could not be loaded, so they were left untouched.']);
-    } finally {
-      this.schedulesLoading.set(false);
-    }
   }
 
   protected patchDay(dayOfWeek: number, field: 'enabled' | 'open' | 'close', value: boolean | string): void {

@@ -165,6 +165,13 @@ export interface AdminPlace {
   longitude: number;
   address: string | null;
   status: AdminPlaceStatus;
+  /** Aggregate score; `null` when the place has no reviews yet. */
+  rating: { average: number; count: number } | null;
+  /** The detail read carries these; the listing does not, on purpose. */
+  schedules: PlaceSchedule[];
+  attributes: string[];
+  menus: PlaceMenu[];
+  photos: PlacePhoto[];
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;
@@ -411,16 +418,6 @@ export class AdminApi {
     return body.data;
   }
 
-  /** The codes currently on a place. */
-  async getPlaceAttributes(coPlace: string): Promise<string[]> {
-    const body = await firstValueFrom(
-      this.http.get<{ data: string[] }>(
-        `${this.baseUrl}/admin/places/${encodeURIComponent(coPlace)}/attributes`,
-      ),
-    );
-    return body.data ?? [];
-  }
-
   /** Replaces the whole attribute set. An unknown code is `422`, never silently dropped. */
   async replacePlaceAttributes(coPlace: string, codes: string[]): Promise<void> {
     await firstValueFrom(
@@ -429,15 +426,6 @@ export class AdminApi {
         { codes },
       ),
     );
-  }
-
-  async getPlaceMenu(coPlace: string): Promise<PlaceMenu[]> {
-    const body = await firstValueFrom(
-      this.http.get<{ data: PlaceMenu[] }>(
-        `${this.baseUrl}/admin/places/${encodeURIComponent(coPlace)}/menu`,
-      ),
-    );
-    return body.data ?? [];
   }
 
   /**
@@ -450,14 +438,6 @@ export class AdminApi {
         menus,
       }),
     );
-  }
-
-  getPlaceSchedules(coPlace: string): Promise<PlaceSchedule[]> {
-    return firstValueFrom(
-      this.http.get<{ schedules: PlaceSchedule[] }>(
-        `${this.baseUrl}/admin/places/${encodeURIComponent(coPlace)}/schedules`,
-      ),
-    ).then((body) => body.schedules ?? []);
   }
 
   /**
