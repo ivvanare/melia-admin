@@ -487,6 +487,33 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/notifications/preferences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The notification catalogue with the caller's switches
+         * @description Returns **every** kind, not only the disabled ones: a client renders one switch per
+         *     entry, and "absence of a preference means enabled" is a server rule, not something a
+         *     client should have to infer.
+         */
+        get: operations["getNotificationPreferences"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Turn one kind on or off
+         * @description An unknown kind is `422` with field `kind` and code `unknown`: a switch for a kind that
+         *     does not exist would be a switch that lies.
+         */
+        patch: operations["setNotificationPreference"];
+        trace?: never;
+    };
     "/v1/blocks": {
         parameters: {
             query?: never;
@@ -1315,6 +1342,11 @@ export interface components {
             address?: string | null;
             /** @enum {string} */
             status?: "ACTIVE" | "INACTIVE";
+        };
+        NotificationPreference: {
+            /** @example invitation.received */
+            kind: string;
+            enabled: boolean;
         };
         Block: {
             /** Format: uuid */
@@ -2380,6 +2412,59 @@ export interface operations {
                     };
                 };
             };
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    getNotificationPreferences: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The catalogue. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        total: number;
+                        data: components["schemas"]["NotificationPreference"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    setNotificationPreference: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @example invitation.received */
+                    kind: string;
+                    enabled: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description Preference stored. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
             422: components["responses"]["ValidationError"];
         };
     };

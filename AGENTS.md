@@ -108,7 +108,7 @@ Rules that matter here:
 ## Discovery endpoints (in `melia`, not in `contract/` yet)
 
 The discovery and social routes are in `contract/`, pinned to a pushed commit of
-`feat/api-social-graph` (`9984ecba`): `GET /v1/places` (list and map), the review routes,
+`feat/api-social-graph` (`ad996e9d`): `GET /v1/places` (list and map), the review routes,
 `PATCH /v1/admin/reviews/{coReview}`, `/v1/follows` and the check-in route. The rule that matters when
 the API moves again: run `scripts/sync-contract.sh <commit>` only when that commit is **remote**, because
 the `contract` CI job fetches it from the API's repository; pinning an unpushed one turns the job red for
@@ -229,7 +229,13 @@ changes what the panel's data means: follow listings and review visibility exclu
 directions**, so a review can legitimately disappear from a result the panel is reading. The panel needs
 no code for it — and must not cache viewer-relative results across users because of it.
 
-**Notifications** remain absent by decision: they need the mobile client to be meaningful.
+**Notification preferences** exist (`GET`/`PATCH /v1/notifications/preferences`), and the delivery
+rules matter if a screen is built: `GET` returns the **whole catalogue**, so the UI renders a switch per
+entry instead of guessing which kinds exist; an **absent preference means enabled**, so nothing needs
+seeding; and a `PATCH` with an unknown `kind` is `422 field: kind, code: unknown` — a switch for a kind
+that does not exist would be a switch that lies. Notification *delivery* remains out of scope until the
+mobile client exists, and the invitation email is **courtesy, never a condition**: the invitation answers
+`201` whether or not the mail can leave, so no UI logic may depend on it having arrived.
 
 One invariant worth checking whenever a list looks wrong: a page of rows and its `total` must agree. The
 API once answered `total=1` with zero rows under an active block; paginating that pages forever through
