@@ -50,6 +50,7 @@ Test runners: `npx ng test admin --watch=false`; `tsc --noEmit` for `tsconfig.ap
 | T7 | S2 | done | Record the forward rule where the next author will read it |
 | T8 | S2, S6 | done | Users renders its rows through `<app-data-table>`, with its own query state (search, status, scope, paging, row actions) instead of `crud-list-screen` |
 | T10 | S7 | done | ng-zorro follows the panel's radius and surface tokens through a documented bridge layer, and the `--surface-2` dark gap is closed |
+| T11 | S7 | blocked | Replace the indigo accent with the landing's orange, and move `--warn` from amber to yellow. Waits for the exact token set from the landing session |
 | T9 | S2, S6 | done | Audit renders its rows through `<app-data-table>`, keeping the exact-event filter, the user and email-hash filters and the two `datetime-local` range inputs |
 
 ## Log
@@ -109,3 +110,14 @@ Test runners: `npx ng test admin --watch=false`; `tsc --noEmit` for `tsconfig.ap
 - **L11** (bug, parent): `--surface-2` had a light value only. Dark mode inherited `#f8fafc`, so every
   soft surface turned near-white: the Places card footer, the access-denied panel and three auth screens.
   Closed with a dark value in the same commit as the bridge.
+- **L12** (decision, user): the indigo accent reads badly against the dark surfaces, so the panel moves to the
+  orange the landing page already uses, and `--warn` moves from amber to yellow to keep warning distinct
+  from brand. Two conditions were fixed by the human: the exact token set is taken from the landing
+  session rather than invented (asked for: base, hover, soft, focus ring and the text-on-colour rule),
+  and the warning hue moves with it. Blocked on that answer; nothing was changed in the theme yet.
+- **L13** (finding, parent): the swap is token-shaped — 41 uses of `var(--accent)`, 12 of `--accent-soft`,
+  6 of `--accent-hover`, 3 of `--accent-ring` across 15 files — but three literals would survive it and
+  must be fixed in the same commit: `--accent-ring: #8b87f8`, the info-tag inks `#3730a3` / `#c7c4ff`
+  and a `#eef0fe` border in `src/styles.css`, `#8b87f8` in `src/app/landing/panel-preview.css`, and
+  `#4338ca` in `src/app/demo/faqs-demo.css`. The dark theme needs `--on-accent` re-checked too: white on
+  an orange is not automatically AA.
