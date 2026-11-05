@@ -105,6 +105,38 @@ Rules that matter here:
   echoed from `sessionStorage`, access token in memory, one shared in-flight rotation.
 - The panel renders from `permissions` (`GET /v1/me`), never from role names.
 
+## Discovery endpoints (in `melia`, not in `contract/` yet)
+
+`GET /v1/places` (list and map modes), the review routes and `PATCH /v1/admin/reviews/{coReview}`
+exist on `feat/api-place-discovery` in the sibling, **not pushed**. Until a remote SHA exists:
+
+- Do **not** run `scripts/sync-contract.sh`. The `contract` CI job fetches the declared commit from the
+  API's repository, so pinning an unpushed one turns the job red for a reason that means nothing.
+  Develop against `../melia/api/openapi.yaml` and `../melia/api/API.md`, and commit the snapshot in one
+  move when the SHA is remote.
+
+Facts that each cost a bug already:
+
+- **Coordinate order differs per parameter.** `near=<lat>,<long>`; `bbox=<minLon>,<minLat>,<maxLon>,<maxLat>`
+  (longitude first, like GeoJSON). Swapping them yields a plausible, wrong map.
+- **Map clusters come from the server**, grouped in H3 cells. Do not enable MapLibre's own clustering:
+  two clusterers means two answers to "how many venues are here".
+- **`sort=trending` currently degrades to `rating`** and answers `degraded: true`. Even once the ranking
+  producer exists, `degraded` is a valid per-zone state, not an error: a zone without ranking. Never
+  treat it as a failure, and do not tie copy to "trending" while it can silently be rating.
+- **Errors**: always `{"error":{"code","message","details"?}}`; parse `code`, never `message`. Validation
+  is `422` with `details.fields[]` over a closed vocabulary (`required|invalid|too_short|too_long|unknown`).
+  An unknown or inactive place is `404` on the review routes too.
+- **Moderating a review does not free the author's slot.** The partial unique index is
+  `WHERE dt_deleted_at IS NULL`, so a `MODERATED` review still blocks a new one from the same author
+  (`409 review_already_exists`). Pending decision Q7 in `melia`; if moderating also sets
+  `dt_deleted_at`, "moderate" and "withdraw" stop being the same action and the moderation screen must
+  offer both.
+- **`GET /v1/admin/reviews` does not exist yet.** Moderation needs it to discover a `coReview`; it is
+  planned with `status|placeId|authorId` filters. Do not build the screen before it lands.
+- **A running container may serve an older image than the code you read.** If a new filter returns `200`
+  with exactly the result it should have changed, suspect the deployed commit before the contract.
+
 ## Branches and commits
 
 `dev` → `quality` → `prod`, promoting in one direction; work on a short-lived branch and open the
