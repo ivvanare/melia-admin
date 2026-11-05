@@ -108,7 +108,7 @@ Rules that matter here:
 ## Discovery endpoints (in `melia`, not in `contract/` yet)
 
 The discovery and social routes are in `contract/`, pinned to a pushed commit of
-`feat/api-social-graph` (`7077bcf1`): `GET /v1/places` (list and map), the review routes,
+`feat/api-social-graph` (`597603f6`): `GET /v1/places` (list and map), the review routes,
 `PATCH /v1/admin/reviews/{coReview}`, `/v1/follows` and the check-in route. The rule that matters when
 the API moves again: run `scripts/sync-contract.sh <commit>` only when that commit is **remote**, because
 the `contract` CI job fetches it from the API's repository; pinning an unpushed one turns the job red for
@@ -216,3 +216,15 @@ The four rules that are easy to get wrong:
   back unchanged and nothing errors. The UI must not send the field at all in that case.
 - **`status=DELETED` is a listing filter**, not a place status: it is the only way to see logically retired
   rows, which then disappear from discovery, reviews and check-ins.
+
+## What the API has that the panel does not use yet
+
+`dev` of the API also carries **plans** (`/v1/plans`, membership, places in a plan, votes ordered by
+net votes) and **invitations** (`/v1/invitations`, host view, accept as `VIEWER`, reject, `expiresAt`,
+`revealed`). Both are mobile-domain features with no panel screen; they are in the snapshot only because
+the snapshot is the whole contract. Adding a panel surface for them is a product decision, not a gap.
+
+Two things are deliberately absent from the API and will not appear on their own: **notifications**
+(they need the mobile client to be meaningful) and **blocking** (`tb_block` plus filtering it in every
+viewer-relative projection is the public-launch gate for the social graph). The panel must not assume
+either exists.

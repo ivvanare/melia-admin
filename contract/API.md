@@ -418,6 +418,7 @@ El panel es un SPA en otro origen, así que cada llamada es cross-origin y el he
 | `review_already_exists` | 409 | ya tenés una reseña activa en ese lugar |
 | `not_near_place` | 422 | la coordenada enviada está fuera del radio del lugar |
 | `already_checked_in` | 409 | ya hiciste check-in en ese lugar hoy |
+| `invitation_already_pending` | 409 | esa persona ya tiene una invitación viva a ese plan |
 | `refresh_invalid` | 401 | refresh desconocido o vencido |
 | `refresh_reused` | 401 | reuso detectado; la familia está revocada |
 | `invalid_token` | 401 | el ID token del proveedor no valida |
@@ -865,3 +866,57 @@ El listado `GET /v1/admin/reviews` agrega `place: {id, title}` a cada fila. No e
 lectura pública a propósito: ahí el cliente ya conoce el lugar porque consultó por `coPlace`.
 En el listado admin sí hace falta, porque un moderador puede tener `review.moderate` sin
 `place.update` y entonces no puede resolver el uuid por su cuenta.
+
+### 15.1 Itinerario y votos
+
+```http
+GET    /v1/plans/{coRoute}/places
+POST   /v1/plans/{coRoute}/places                          { coPlace, order? }
+DELETE /v1/plans/{coRoute}/places/{coPlace}
+POST   /v1/plans/{coRoute}/places/{coPlace}/votes          { vote: -1 | 1 }
+```
+
+El itinerario se ordena por **votos netos descendente**, y los empates se rompen por el orden
+manual y después por fecha de creación. Ese desempate es lo que lo hace determinístico: dos
+lecturas seguidas devuelven el mismo orden, y una lista votada no se reordena sola entre pedidos.
+
+- Agregar o quitar lugares es de `EDITOR` u `OWNER`. Un `VIEWER` lee y vota: no da forma al plan.
+- **Solo un miembro vota.** Un voto de alguien que no pertenece al plan se rechaza con `403`, no
+  se descarta en silencio. En un plan público cualquiera puede *leer*; votar sigue siendo de
+  miembros.
+- Votar dos veces cambia el voto, no agrega otro: un miembro tiene como máximo un voto por lugar.
+  Por eso `nu_vote` es `-1` o `1` y no existe el `0` — no votar es simplemente no tener fila.
+- Sacar un lugar del plan borra sus votos: la FK es compuesta a `(co_route, co_place)`, así que
+  tampoco se puede votar un lugar que no está en el plan.
+
+### 15.2 Invitaciones
+
+```http
+POST   /v1/plans/{coRoute}/invitations            { coUser, expiresAt, mode?, message?, hint? }
+GET    /v1/plans/{coRoute}/invitations            ← la vista del anfitrión
+GET    /v1/invitations                            ← mi bandeja
+POST   /v1/invitations/{coInvitation}/accept
+POST   /v1/invitations/{coInvitation}/decline
+```
+
+Una invitación tiene ciclo de vida propio (`PENDING → ACCEPTED | DECLINED | EXPIRED | REVOKED`),
+no es un flag ni una membresía con estado. Invitar es de `EDITOR` u `OWNER`; **un no-miembro no
+puede invitar**.
+
+- **Aceptar crea la membresía `VIEWER` en la misma transacción.** Aceptar nunca da `EDITOR`.
+- **Rechazar es terminal y no crea nada.**
+- **El vencimiento lo impone la lectura.** Toda lectura y todo aceptar exigen
+  `dt_expires_at > now()`: una invitación vencida no se puede aceptar aunque el sweeper esté
+  caído. La columna `expired` te dice el veredicto sin que tengas que comparar fechas.
+- **Visibilidad asimétrica:** el anfitrión ve el estado de todos; un invitado ve solo el suyo.
+  Quién rechazó no es información de la comunidad.
+- Una invitación vencida, ya respondida o ajena responden `404`, indistinguibles a propósito.
+- `SURPRISE` exige al menos `message` o `hint`: un sobre vacío no es una sorpresa.
+- **El destape** lo dice el campo `revealed`: una invitación `PLAIN` siempre lo trae en `true`;
+  una `SURPRISE` lo pasa a `true` cuando su regla se cumple — al aceptar (`ON_ACCEPT`) o a la
+  hora del plan (`AT_SCHEDULED`, el default). Mientras sea `false`, el itinerario del plan
+  responde `403` a ese invitado: el itinerario **es** el lugar, y mostrarlo antes de tiempo
+  rompe la sorpresa. Un miembro ya está adentro y nunca se le oculta nada.
+- Si el plan no tiene fecha, `AT_SCHEDULED` no puede cumplirse: el destape ocurre al aceptar.
+- El **sweeper de higiene** corre en el worker y pasa a `EXPIRED` las invitaciones vencidas.
+  Es higiene, no corrección: el predicado de lectura ya las trataba como inutilizables.
