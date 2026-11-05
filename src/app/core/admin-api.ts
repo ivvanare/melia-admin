@@ -34,6 +34,53 @@ export interface Role {
 }
 
 /** A place's own lifecycle, as the backoffice writes it. */
+export type PlanVisibility = 'PRIVATE' | 'PUBLIC';
+export type PlanStatus = 'ACTIVE' | 'INACTIVE';
+
+/**
+ * `Plan` in `api/openapi.yaml`, as moderation sees it. `viewerRole` is always `''` here: a moderator
+ * holds no role in a plan it does not belong to, so the empty string is a real value, not a missing one.
+ */
+export interface AdminPlan {
+  coRoute: string;
+  coUser: string;
+  name: string;
+  description: string | null;
+  visibility: PlanVisibility;
+  status: PlanStatus;
+  scheduledAt: string | null;
+  partySize: number | null;
+  viewerRole: 'OWNER' | 'EDITOR' | 'VIEWER' | '';
+  memberCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type InvitationStatus = 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'EXPIRED' | 'REVOKED';
+
+/**
+ * `Invitation` in `api/openapi.yaml`. The row already carries `planName` and `inviteeName`, so the
+ * moderation screen never shows a uuid for either.
+ */
+export interface AdminInvitation {
+  coInvitation: string;
+  coRoute: string;
+  coUser: string;
+  status: InvitationStatus;
+  mode: 'PLAIN' | 'SURPRISE';
+  message: string | null;
+  hint: string | null;
+  expiresAt: string;
+  revealed?: boolean;
+  /** A `PENDING` invitation past its expiry is unusable whether or not a sweeper ran. */
+  expired: boolean;
+  createdAt: string;
+  respondedAt: string | null;
+  inviteeName: string | null;
+  planName: string | null;
+  planScheduledAt: string | null;
+}
+
 /**
  * `PlaceCategory` in `api/openapi.yaml`. It is taxonomy, not customer data, so the catalogue is
  * public — the panel's select and the app's filters read the same list. `code` is the stable key
@@ -161,6 +208,18 @@ export interface UsersQuery extends PageQuery {
   status?: UserStatus | null;
 }
 
+export interface AdminPlansQuery extends PageQuery {
+  status?: PlanStatus | null;
+  ownerId?: string | null;
+  visibility?: PlanVisibility | null;
+}
+
+export interface AdminInvitationsQuery extends PageQuery {
+  status?: InvitationStatus | null;
+  planId?: string | null;
+  inviteeId?: string | null;
+}
+
 export interface AdminPlacesQuery extends PageQuery {
   q?: string | null;
   status?: AdminPlaceListStatus | null;
@@ -256,6 +315,56 @@ export class AdminApi {
         `${this.baseUrl}/admin/users/${encodeURIComponent(userId)}/roles`,
         { roles },
       ),
+    );
+  }
+
+  /** Plans across the whole site: moderation requires seeing, so there is no ownership scope. */
+  listAdminPlans(query: AdminPlansQuery): Promise<Page<AdminPlan>> {
+    return firstValueFrom(
+      this.http.get<Page<AdminPlan>>(`${this.baseUrl}/admin/plans`, {
+        params: toParams({
+          page: query.page,
+          limit: query.limit,
+          status: query.status,
+          ownerId: query.ownerId,
+          visibility: query.visibility,
+        }),
+      }),
+    );
+  }
+
+  /** Suspending a plan hides it: owner and members keep `200`, everyone else gets `404`. */
+  setPlanStatus(coRoute: string, status: PlanStatus): Promise<AdminPlan> {
+    return firstValueFrom(
+      this.http.patch<AdminPlan>(
+        `${this.baseUrl}/admin/plans/${encodeURIComponent(coRoute)}`,
+        { status },
+      ),
+    );
+  }
+
+  /** Every invitation on the site, newest first. */
+  listAdminInvitations(query: AdminInvitationsQuery): Promise<Page<AdminInvitation>> {
+    return firstValueFrom(
+      this.http.get<Page<AdminInvitation>>(`${this.baseUrl}/admin/invitations`, {
+        params: toParams({
+          page: query.page,
+          limit: query.limit,
+          status: query.status,
+          planId: query.planId,
+          inviteeId: query.inviteeId,
+        }),
+      }),
+    );
+  }
+
+  /**
+   * Revokes an invitation. Revocation is terminal and needs no new error code: `accept` only matches
+   * `PENDING`, so a revoked invitation answers `404` from the client's side.
+   */
+  revokeInvitation(coInvitation: string): Promise<void> {
+    return firstValueFrom(
+      this.http.delete<void>(`${this.baseUrl}/admin/invitations/${encodeURIComponent(coInvitation)}`),
     );
   }
 

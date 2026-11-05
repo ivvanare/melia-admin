@@ -1,5 +1,7 @@
 import type {
+  AdminInvitation,
   AdminPlace,
+  AdminPlan,
   AdminReview,
   AuditEvent,
   Page,
@@ -32,6 +34,8 @@ export type PermissionMatchesTheWire = Wire<Permission, components['schemas']['P
 export type AuditEventMatchesTheWire = Wire<AuditEvent, components['schemas']['AuditEvent']>;
 export type AdminReviewMatchesTheWire = Wire<AdminReview, components['schemas']['Review']>;
 export type AdminPlaceMatchesTheWire = Wire<AdminPlace, components['schemas']['AdminPlace']>;
+export type AdminPlanMatchesTheWire = Wire<AdminPlan, components['schemas']['Plan']>;
+export type AdminInvitationMatchesTheWire = Wire<AdminInvitation, components['schemas']['Invitation']>;
 export type PlaceCategoryMatchesTheWire = Wire<PlaceCategory, components['schemas']['PlaceCategory']>;
 
 /**

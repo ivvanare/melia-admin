@@ -1,0 +1,59 @@
+<section class="screen">
+  <ng-template #rowActions let-row>
+    @if (canRevoke(row)) {
+      <button
+        nz-button
+        nzSize="small"
+        nzDanger
+        type="button"
+        [disabled]="revokingId() !== null"
+        (click)="revoke(row)"
+      >
+        Revoke
+      </button>
+    }
+  </ng-template>
+
+  <div class="pagehead">
+    <div>
+      <h1>Invitations</h1>
+      <p>{{ subtitle() }}</p>
+    </div>
+    <button class="btn secondary" type="button" [disabled]="loading()" (click)="load()">
+      {{ loading() ? 'Refreshing…' : 'Refresh' }}
+    </button>
+  </div>
+
+  @if (errorCode(); as code) {
+    <div class="alert" role="alert">
+      <span>The action was rejected: <code>{{ code }}</code></span>
+      <button class="btn secondary" type="button" (click)="load()">Reload</button>
+    </div>
+  }
+
+  <div class="toolbar">
+    <label class="field narrow">
+      Status
+      <select [value]="statusFilter()" (change)="statusFilter.set($any($event.target).value); apply()">
+        <option value="">Any status</option>
+        @for (status of statuses; track status) {
+          <option [value]="status">{{ status }}</option>
+        }
+      </select>
+    </label>
+  </div>
+
+  <app-data-table
+    caption="Invitations with their plan, invitee and status"
+    [rows]="rows()"
+    [columns]="columns"
+    [empty]="emptyLabel()"
+    [rowActions]="rowActions"
+  />
+
+  <div class="pager">
+    <span>{{ rangeLabel() }}</span>
+    <button class="btn secondary" type="button" [disabled]="page() === 1" (click)="previous()">Previous</button>
+    <button class="btn secondary" type="button" [disabled]="page() >= pageCount()" (click)="next()">Next</button>
+  </div>
+</section>

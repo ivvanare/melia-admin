@@ -20,6 +20,8 @@ export type ModuleIcon =
   | 'menus'
   | 'reviews'
   | 'routes'
+  | 'plans'
+  | 'invitations'
   | 'users'
   | 'roles'
   | 'audit'
@@ -108,6 +110,23 @@ export const PANEL_GROUPS: readonly PanelGroup[] = [
         permission: 'role.manage',
       },
       {
+        path: 'plans',
+        label: 'Plans',
+        description: 'Suspend a plan that breaks the rules',
+        icon: 'plans',
+        status: 'live',
+        // Moderation is its own permission: `admin.access` only means "may enter the backoffice".
+        permission: 'plan.moderate',
+      },
+      {
+        path: 'invitations',
+        label: 'Invitations',
+        description: 'Revoke a pending invitation',
+        icon: 'invitations',
+        status: 'live',
+        permission: 'invitation.moderate',
+      },
+      {
         path: 'audit',
         label: 'Audit log',
         description: 'Who changed what, newest first',
@@ -163,5 +182,7 @@ export const ICON_PATHS: Record<ModuleIcon, string> = {
   audit: 'M6 4h9l4 4v12H6z M9.5 12h6M9.5 15.5h4',
   account:
     'M12 20.4a8.4 8.4 0 1 0 0-16.8 8.4 8.4 0 0 0 0 16.8Z M12 12.6a2.6 2.6 0 1 0 0-5.2 2.6 2.6 0 0 0 0 5.2Z M7.4 18.4c.8-2.2 2.5-3.4 4.6-3.4s3.8 1.2 4.6 3.4',
+  plans: 'M5 5h14v14H5z M9 9h6M9 13h6M9 17h3',
+  invitations: 'M4 6h16v12H4z M4 7l8 6 8-6',
   demo: 'M4 7h16v10H4z M8 20h8',
 };

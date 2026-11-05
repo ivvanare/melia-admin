@@ -1,0 +1,49 @@
+<section class="screen">
+  <ng-template #rowActions let-row>
+    <button nz-button nzSize="small" type="button" [disabled]="savingId() !== null" (click)="toggleStatus(row)">
+      {{ row.status === 'ACTIVE' ? 'Suspend' : 'Reactivate' }}
+    </button>
+  </ng-template>
+
+  <div class="pagehead">
+    <div>
+      <h1>Plans</h1>
+      <p>{{ subtitle() }}</p>
+    </div>
+    <button class="btn secondary" type="button" [disabled]="loading()" (click)="load()">
+      {{ loading() ? 'Refreshing…' : 'Refresh' }}
+    </button>
+  </div>
+
+  @if (errorCode(); as code) {
+    <div class="alert" role="alert">
+      <span>The action was rejected: <code>{{ code }}</code></span>
+      <button class="btn secondary" type="button" (click)="load()">Reload</button>
+    </div>
+  }
+
+  <div class="toolbar">
+    <label class="field narrow">
+      Status
+      <select [value]="statusFilter()" (change)="statusFilter.set($any($event.target).value); apply()">
+        <option value="">Any status</option>
+        <option value="ACTIVE">ACTIVE</option>
+        <option value="INACTIVE">INACTIVE</option>
+      </select>
+    </label>
+  </div>
+
+  <app-data-table
+    caption="Plans with their visibility, owner and status"
+    [rows]="rows()"
+    [columns]="columns"
+    [empty]="emptyLabel()"
+    [rowActions]="rowActions"
+  />
+
+  <div class="pager">
+    <span>{{ rangeLabel() }}</span>
+    <button class="btn secondary" type="button" [disabled]="page() === 1" (click)="previous()">Previous</button>
+    <button class="btn secondary" type="button" [disabled]="page() >= pageCount()" (click)="next()">Next</button>
+  </div>
+</section>

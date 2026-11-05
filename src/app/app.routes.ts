@@ -62,6 +62,16 @@ export const routes: Routes = [
         loadComponent: () => import('./panel/roles/roles').then((m) => m.Roles),
       },
       {
+        path: 'plans',
+        title: 'Plans — melZone panel',
+        loadComponent: () => import('./panel/plans/plans').then((m) => m.Plans),
+      },
+      {
+        path: 'invitations',
+        title: 'Invitations — melZone panel',
+        loadComponent: () => import('./panel/invitations/invitations').then((m) => m.Invitations),
+      },
+      {
         path: 'audit',
         title: 'Audit log — melZone panel',
         loadComponent: () => import('./panel/audit/audit').then((m) => m.Audit),

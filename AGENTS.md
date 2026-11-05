@@ -108,7 +108,7 @@ Rules that matter here:
 ## Discovery endpoints (in `melia`, not in `contract/` yet)
 
 The discovery and social routes are in `contract/`, pinned to a pushed commit of
-`feat/api-social-graph` (`ad996e9d`): `GET /v1/places` (list and map), the review routes,
+`feat/api-social-graph` (`3a78317e`): `GET /v1/places` (list and map), the review routes,
 `PATCH /v1/admin/reviews/{coReview}`, `/v1/follows` and the check-in route. The rule that matters when
 the API moves again: run `scripts/sync-contract.sh <commit>` only when that commit is **remote**, because
 the `contract` CI job fetches it from the API's repository; pinning an unpushed one turns the job red for
@@ -163,9 +163,16 @@ What it does is the other side of the same data: moderate a review, curate or re
 account, reassign a role, read the audit log. When a domain has no moderation route, the panel has no
 screen — the missing piece is on the API, not a gap to fill with a participant flow.
 
-Current state of that rule: reviews, places, users, roles, permissions and the audit log have admin
-routes. **Plans, invitations and votes have none** — every route they expose is viewer-scoped
-(`/v1/plans`, `/v1/invitations`), so the panel cannot moderate them yet and does not pretend to.
+Current state of that rule: reviews, places, users, roles, permissions, the audit log, **plans** and
+**invitations** have admin routes. Plans and invitations are moderated, never joined: `/panel/plans`
+suspends (which hides a plan from everyone but its owner and members) and `/panel/invitations` revokes a
+pending one, which is terminal. `plan.moderate` and `invitation.moderate` are their own permissions, so
+an `EDITOR` does not see those modules at all.
+
+Two facts that shape those screens: a plan's `viewerRole` is `''` for a moderator — the empty string is a
+real value, not a missing one — and an invitation row carries `planName` and `inviteeName`, so moderation
+never shows a uuid. Votes and a plan's itinerary remain participant-side: there is no admin route for
+either, and the panel does not invent one.
 
 ## Forms that reference another table
 
