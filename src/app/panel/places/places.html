@@ -194,18 +194,24 @@
             </div>
 
             <div class="field">
-              <label for="place-category">Category id</label>
-              <input
+              <label for="place-category">Category</label>
+              <select
                 id="place-category"
-                class="dialog-input mono"
-                type="text"
+                class="dialog-input"
                 [value]="draft().categoryId"
-                [disabled]="saving()"
-                (input)="patch('categoryId', $any($event.target).value)"
-              />
-              @if (draft().categoryName) {
-                <p class="hint">Currently {{ draft().categoryName }}.</p>
-              }
+                [disabled]="saving() || categories().length === 0"
+                (change)="patch('categoryId', $any($event.target).value)"
+              >
+                @if (draft().categoryId === '') {
+                  <option value="">Pick a category</option>
+                }
+                @for (option of categoryOptions(); track option.id) {
+                  <option [value]="option.id">{{ option.label }}</option>
+                }
+              </select>
+              <p class="hint">
+                The active taxonomy. The stable key is the code; the id is what the place stores.
+              </p>
             </div>
           </fieldset>
         </div>

@@ -7,6 +7,7 @@ import {
   type AdminPlaceListStatus,
   type AdminPlaceStatus,
   type AdminPlaceWrite,
+  type PlaceCategory,
 } from '../../core/admin-api';
 import { apiErrorCode } from '../../core/api-error';
 import { AuthService } from '../../core/auth.service';
@@ -118,6 +119,9 @@ export class Places {
 
   protected readonly view = signal<'cards' | 'table'>('cards');
 
+  /** The active taxonomy: the form offers a select instead of asking for a uuid. */
+  protected readonly categories = signal<readonly PlaceCategory[]>([]);
+
   protected readonly canManageAll = computed(() =>
     this.auth.permissions().includes('place.manage_all'),
   );
@@ -181,7 +185,37 @@ export class Places {
 
   constructor() {
     void this.load();
+    void this.loadCategories();
   }
+
+  private async loadCategories(): Promise<void> {
+    try {
+      this.categories.set(await this.api.listPlaceCategories('ACTIVE'));
+    } catch {
+      // Without the catalogue the select falls back to the place's own category, so editing still
+      // works; creating a place keeps the field disabled rather than offering a made-up id.
+      this.categories.set([]);
+    }
+  }
+
+  /**
+   * A place may sit in a category that has since been deactivated. Dropping it from the options
+   * would silently move the place on the next save, so the current one is kept and marked.
+   */
+  protected categoryOptions = computed(() => {
+    const draft = this.draft();
+    const options = this.categories().map((category) => ({
+      id: category.coPlaceCategory,
+      label: `${category.name} (${category.code})`,
+    }));
+    if (draft.categoryId !== '' && !options.some((option) => option.id === draft.categoryId)) {
+      options.unshift({
+        id: draft.categoryId,
+        label: `${draft.categoryName || 'Current category'} (inactive)`,
+      });
+    }
+    return options;
+  });
 
   protected async load(): Promise<void> {
     this.loading.set(true);

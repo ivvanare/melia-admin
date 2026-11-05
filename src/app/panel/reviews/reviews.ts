@@ -80,7 +80,9 @@ export class Reviews {
 
   protected readonly columns: readonly DataTableColumn<AdminReview>[] = [
     { label: 'When', value: (row) => stamp(row.createdAt) },
-    { label: 'Place', value: (row) => row.coPlace, variant: 'mono' },
+    // The admin listing carries the place title precisely so a moderator never reads a uuid.
+    // It is nullable and optional, so the id is the honest fallback.
+    { label: 'Place', value: (row) => row.place?.title ?? row.coPlace },
     {
       label: 'Author',
       value: (row) => (row.author.name?.trim() ? row.author.name : row.author.id),

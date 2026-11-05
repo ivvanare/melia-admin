@@ -34,6 +34,18 @@ export interface Role {
 }
 
 /** A place's own lifecycle, as the backoffice writes it. */
+/**
+ * `PlaceCategory` in `api/openapi.yaml`. It is taxonomy, not customer data, so the catalogue is
+ * public — the panel's select and the app's filters read the same list. `code` is the stable key
+ * across environments; `coPlaceCategory` is the uuid a place write still needs.
+ */
+export interface PlaceCategory {
+  coPlaceCategory: string;
+  code: string;
+  name: string;
+  status: 'ACTIVE' | 'INACTIVE';
+}
+
 export type AdminPlaceStatus = 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
 
 /**
@@ -103,6 +115,12 @@ export interface AdminReview {
   status: ReviewStatus;
   /** Display-safe author fields: the API never exposes the address here. */
   author: { id: string; name: string | null };
+  /**
+   * The admin listing carries the place's title so the screen never shows a bare uuid. It is
+   * optional and nullable: a physically deleted place has no title, and an older container may not
+   * send the field at all.
+   */
+  place?: { id: string; title: string | null };
   createdAt: string;
   updatedAt: string;
   viaFollowedAuthor: boolean;
@@ -239,6 +257,19 @@ export class AdminApi {
         { roles },
       ),
     );
+  }
+
+  /**
+   * The active taxonomy, newest name first, ordered by name by the API. Public on purpose: it is
+   * the same list the app's discovery filters need.
+   */
+  async listPlaceCategories(status: 'ACTIVE' | 'INACTIVE' = 'ACTIVE'): Promise<PlaceCategory[]> {
+    const body = await firstValueFrom(
+      this.http.get<{ data: PlaceCategory[] }>(`${this.baseUrl}/place-categories`, {
+        params: toParams({ status }),
+      }),
+    );
+    return body.data;
   }
 
   /**

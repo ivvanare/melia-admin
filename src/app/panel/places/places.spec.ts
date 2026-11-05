@@ -71,6 +71,12 @@ describe('Places', () => {
   const updateAdminPlace = vi.fn();
   const createAdminPlace = vi.fn();
   const deleteAdminPlace = vi.fn();
+  const listPlaceCategories = vi.fn();
+
+  const CATEGORIES = [
+    { coPlaceCategory: '11111111-1111-4111-8111-111111111111', code: 'hotel', name: 'Hotel', status: 'ACTIVE' as const },
+    { coPlaceCategory: '33333333-3333-4333-8333-333333333333', code: 'arepera', name: 'Arepera', status: 'ACTIVE' as const },
+  ];
 
   beforeEach(() => {
     TestBed.resetTestingModule();
@@ -79,6 +85,7 @@ describe('Places', () => {
     updateAdminPlace.mockReset().mockResolvedValue(PLACES[0]);
     createAdminPlace.mockReset().mockResolvedValue(PLACES[0]);
     deleteAdminPlace.mockReset().mockResolvedValue(undefined);
+    listPlaceCategories.mockReset().mockResolvedValue(CATEGORIES);
 
     TestBed.configureTestingModule({
       imports: [Places],
@@ -92,7 +99,14 @@ describe('Places', () => {
         },
         {
           provide: AdminApi,
-          useValue: { listAdminPlaces, updateAdminPlace, createAdminPlace, deleteAdminPlace, getAdminPlace: vi.fn() },
+          useValue: {
+            listAdminPlaces,
+            updateAdminPlace,
+            createAdminPlace,
+            deleteAdminPlace,
+            listPlaceCategories,
+            getAdminPlace: vi.fn(),
+          },
         },
       ],
     });
@@ -168,7 +182,14 @@ describe('Places', () => {
         },
         {
           provide: AdminApi,
-          useValue: { listAdminPlaces, updateAdminPlace, createAdminPlace, deleteAdminPlace, getAdminPlace: vi.fn() },
+          useValue: {
+            listAdminPlaces,
+            updateAdminPlace,
+            createAdminPlace,
+            deleteAdminPlace,
+            listPlaceCategories,
+            getAdminPlace: vi.fn(),
+          },
         },
       ],
     });
@@ -203,6 +224,27 @@ describe('Places', () => {
     const patch = updateAdminPlace.mock.calls.at(-1)?.[1] as Record<string, unknown>;
     expect(patch).toBeDefined();
     expect('coOwnerUser' in patch).toBe(false);
+  });
+
+  it('offers the active categories in a select and sends the chosen uuid', async () => {
+    const { element, fixture } = await render();
+    await openFirst(element, fixture);
+
+    expect(listPlaceCategories).toHaveBeenCalledWith('ACTIVE');
+    const select = inDialog<HTMLSelectElement>('#place-category')[0]!;
+    expect(select.tagName).toBe('SELECT');
+    // Two active categories, and the place's own category is one of them.
+    expect([...select.options].map((option) => option.value)).toContain(CATEGORIES[1]!.coPlaceCategory);
+
+    select.value = CATEGORIES[1]!.coPlaceCategory;
+    select.dispatchEvent(new Event('change'));
+    buttonIn(document.body, 'Save changes').click();
+    await tick();
+
+    expect(updateAdminPlace).toHaveBeenCalledWith(
+      'pl-1',
+      expect.objectContaining({ coPlaceCategory: CATEGORIES[1]!.coPlaceCategory }),
+    );
   });
 
   it('confirms before retiring a place, and only offers it with place.delete', async () => {

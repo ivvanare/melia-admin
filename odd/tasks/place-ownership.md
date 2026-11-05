@@ -343,3 +343,10 @@ Paused 2026-11-02. Nothing is pushed and no pull request exists.
   `ng build` green with `places` at 23.2 kB. Three of the four spec failures along the way were my own
   fixture mistakes, not the code: category ids that were not uuids (validation was right to reject them)
   and a rejection mocked as a plain object when `apiErrorCode` reads `HttpErrorResponse`.
+- **L14** (delivery, API session): the two catalogue gaps closed at `7077bcf1`. `GET /v1/place-categories`
+  is public because it is taxonomy, so the panel's select and the app's filters read one list; a place
+  write still sends `coPlaceCategory`, while `code` is the stable key. The admin review row now carries
+  `place: {id, title}`. Implemented on the SPA side: the Places form renders a `<select>` of active
+  categories (keeping a deactivated current category in the list, marked, so a save cannot silently move
+  the place), and the Reviews table shows the place title with the id as the nullable fallback.
+  Verified: `tsc` app and spec exit 0, `ng test admin` **130 tests / 26 files**, `ng build` green.

@@ -11,6 +11,7 @@ const REVIEWS: AdminReview[] = [
     comment: 'Excelente atención y el café impecable.',
     status: 'ACTIVE',
     author: { id: 'u1', name: 'Ana Rondón' },
+    place: { id: 'p1', title: 'Arepera Chacao' },
     createdAt: '2026-11-01T10:00:00Z',
     updatedAt: '2026-11-01T10:00:00Z',
     viaFollowedAuthor: false,
@@ -22,6 +23,7 @@ const REVIEWS: AdminReview[] = [
     comment: null,
     status: 'MODERATED',
     author: { id: 'u2', name: null },
+    place: { id: 'p2', title: null },
     createdAt: '2026-10-30T10:00:00Z',
     updatedAt: '2026-10-31T10:00:00Z',
     viaFollowedAuthor: true,
@@ -93,6 +95,15 @@ describe('Reviews', () => {
       pill.textContent?.trim(),
     );
     expect(pills).toEqual(['ACTIVE', 'MODERATED']);
+  });
+
+  it('names the place instead of showing its uuid', async () => {
+    const { element } = await render();
+    const text = element.textContent ?? '';
+
+    expect(text).toContain('Arepera Chacao');
+    // A place whose title is gone falls back to the id rather than an empty cell.
+    expect(text).toContain('p2');
   });
 
   it('lists moderated rows instead of hiding them', async () => {

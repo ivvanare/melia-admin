@@ -108,7 +108,7 @@ Rules that matter here:
 ## Discovery endpoints (in `melia`, not in `contract/` yet)
 
 The discovery and social routes are in `contract/`, pinned to a pushed commit of
-`feat/api-social-graph` (`5c8e8f63`): `GET /v1/places` (list and map), the review routes,
+`feat/api-social-graph` (`7077bcf1`): `GET /v1/places` (list and map), the review routes,
 `PATCH /v1/admin/reviews/{coReview}`, `/v1/follows` and the check-in route. The rule that matters when
 the API moves again: run `scripts/sync-contract.sh <commit>` only when that commit is **remote**, because
 the `contract` CI job fetches it from the API's repository; pinning an unpushed one turns the job red for
@@ -163,8 +163,13 @@ listed. The rule, in the order it applies:
   carry a display name. If it only carries a uuid, request the name in the payload rather than
   resolving it with N extra requests from the client.
 
-Known gaps at the time of writing, both blocked on the API: there is no endpoint listing place
-categories, and an admin review row carries `coPlace` without the place's title.
+Both gaps are closed: `GET /v1/place-categories?status=ACTIVE` is public taxonomy (the panel's select
+and the app's filters read the same list), and an admin review row carries `place: {id, title}`.
+
+Two traps worth keeping: use the category's **`code`** as the stable key (the uuid changes between
+environments) while a place write still sends `coPlaceCategory`; and `place.title` is nullable, and the
+admin listing is no longer shaped like the public one — the public row keeps `viaFollowedAuthor` and has
+no `place`, the admin row has `place` and no `viaFollowedAuthor`.
 
 ## Branches and commits
 

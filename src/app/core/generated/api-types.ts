@@ -462,6 +462,125 @@ export interface paths {
         patch: operations["updateReview"];
         trace?: never;
     };
+    "/v1/place-categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the place category catalogue
+         * @description Public taxonomy, not customer data: the panel renders a select from it and the mobile
+         *     client renders the same list as discovery filters, so it is deliberately not behind a
+         *     backoffice permission.
+         *
+         *     `status=ACTIVE` returns only the selectable ones; omitting it returns the live
+         *     catalogue. Ordering is by name, so the vocabulary keeps a stable order between calls.
+         */
+        get: operations["listPlaceCategories"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/plans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List the plans the caller belongs to */
+        get: operations["listPlans"];
+        put?: never;
+        /**
+         * Create a plan
+         * @description The creator becomes `OWNER` in the same transaction. `visibility` defaults to
+         *     `PRIVATE`: a plan must never become public by omission.
+         */
+        post: operations["createPlan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/plans/{coRoute}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read one plan
+         * @description Visible to a member, and to any authenticated caller when the plan is `PUBLIC`.
+         *     Anything else is `404` — a private plan does not confirm that it exists.
+         */
+        get: operations["getPlan"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update a plan
+         * @description Requires `EDITOR` or `OWNER`. `visibility` is `OWNER` only: changing PRIVATE to PUBLIC
+         *     touches everyone already invited, and taking a public plan private hides it from the
+         *     people who joined. A visible plan with an insufficient role answers `403`; an invisible
+         *     one answers `404`.
+         */
+        patch: operations["updatePlan"];
+        trace?: never;
+    };
+    "/v1/plans/{coRoute}/members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Join a public plan
+         * @description Only a `PUBLIC` plan accepts a self-join, and it grants `VIEWER` — always. An open door
+         *     that hands out `EDITOR` is a plan anyone can rearrange and empty, and a festival is the
+         *     worst case. A private plan answers `404`, and joining twice changes nothing.
+         */
+        post: operations["joinPlan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/plans/{coRoute}/members/{coUser}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Leave a plan, or remove a member
+         * @description A caller may remove themselves; an `OWNER` may remove anyone else. An owner cannot leave
+         *     by themselves — a plan without an owner is invalid. Removing a non-member is a no-op
+         *     `204`.
+         */
+        delete: operations["leavePlan"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admin/places": {
         parameters: {
             query?: never;
@@ -825,6 +944,55 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        PlaceCategory: {
+            /** Format: uuid */
+            coPlaceCategory: string;
+            /** @description Stable key, e.g. arepera. Use it in discovery filters. */
+            code: string;
+            name: string;
+            /** @enum {string} */
+            status: "ACTIVE" | "INACTIVE";
+        };
+        Plan: {
+            /** Format: uuid */
+            coRoute: string;
+            /**
+             * Format: uuid
+             * @description Creator.
+             */
+            coUser: string;
+            name: string;
+            description: string | null;
+            /** @enum {string} */
+            visibility: "PRIVATE" | "PUBLIC";
+            /** @enum {string} */
+            status: "ACTIVE" | "INACTIVE";
+            /** Format: date-time */
+            scheduledAt: string | null;
+            partySize: number | null;
+            /**
+             * @description The caller's role; empty when the plan is public and not joined.
+             * @enum {string}
+             */
+            viewerRole: "OWNER" | "EDITOR" | "VIEWER" | "";
+            memberCount: number;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        PlanWrite: {
+            name?: string;
+            description?: string | null;
+            /** @enum {string} */
+            visibility?: "PRIVATE" | "PUBLIC";
+            /**
+             * Format: date-time
+             * @description Absent means "no date yet", which is a real state.
+             */
+            scheduledAt?: string | null;
+            partySize?: number;
+        };
         AdminPlace: {
             /** Format: uuid */
             coPlace: string;
@@ -1057,12 +1225,6 @@ export interface components {
             /** @description Present only when `sort=trending` and a zone ranking ordered the row. */
             trendingRank?: number;
         };
-        PlaceCategory: {
-            /** Format: uuid */
-            id: string;
-            /** @example Arepera */
-            name: string;
-        };
         Rating: {
             /**
              * Format: double
@@ -1122,6 +1284,15 @@ export interface components {
         Review: {
             /** Format: uuid */
             coReview: string;
+            /**
+             * @description Present on the moderator listing only. A moderator may hold review.moderate
+             *     without place.update and cannot resolve a bare coPlace uuid.
+             */
+            place?: {
+                /** Format: uuid */
+                id: string;
+                title: string | null;
+            };
             /**
              * @description Viewer-relative highlight: true when the reader follows this review's author.
              *     A property of the read, never of the row — the same review is highlighted for
@@ -1904,6 +2075,192 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             422: components["responses"]["ValidationError"];
+        };
+    };
+    listPlaceCategories: {
+        parameters: {
+            query?: {
+                status?: "ACTIVE" | "INACTIVE";
+                page?: components["parameters"]["Page"];
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Page of categories. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        page: number;
+                        limit: number;
+                        total: number;
+                        data: components["schemas"]["PlaceCategory"][];
+                    };
+                };
+            };
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    listPlans: {
+        parameters: {
+            query?: {
+                page?: components["parameters"]["Page"];
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Page of plans, newest first. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        page: number;
+                        limit: number;
+                        total: number;
+                        data: components["schemas"]["Plan"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    createPlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlanWrite"];
+            };
+        };
+        responses: {
+            /** @description Created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Plan"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    getPlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                coRoute: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The plan. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Plan"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updatePlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                coRoute: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlanWrite"];
+            };
+        };
+        responses: {
+            /** @description Updated. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Plan"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    joinPlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                coRoute: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Member (already or newly). */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    leavePlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                coRoute: string;
+                coUser: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No longer a member. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
     listAdminPlaces: {
