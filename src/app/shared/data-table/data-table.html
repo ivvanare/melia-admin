@@ -25,7 +25,11 @@
               [class.left]="column.align === 'left'"
               [class.right]="column.align === 'right'"
             >
-              {{ column.value(row) }}
+              @if (cellTag(column, row); as tag) {
+                <span [class]="'tag ' + tag.variant">{{ tag.label }}</span>
+              } @else {
+                {{ cellText(column, row) }}
+              }
             </td>
           }
           @if (rowActions(); as actions) {

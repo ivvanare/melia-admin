@@ -6,11 +6,25 @@ export interface DataTableCell {
   variant?: 'muted' | 'mono';
 }
 
+/** The design system's `.tag` variants; a status never invents a colour of its own. */
+export type DataTableTagVariant = 'ok' | 'warn' | 'info' | 'neutral' | 'danger';
+
+export interface DataTableTag {
+  label: string;
+  variant: DataTableTagVariant;
+}
+
 export interface DataTableColumn<T> {
   label: string;
-  value: (row: T) => string | number | null;
+  /** Text column. Omitted when the column renders a tag instead. */
+  value?: (row: T) => string | number | null;
   variant?: 'muted' | 'mono';
   align?: 'left' | 'right';
+  /**
+   * A pill instead of text. Declarative on purpose: it is one of the design system's own
+   * components, so it is a variant of the table rather than an escape hatch per cell.
+   */
+  tag?: (row: T) => DataTableTag | null;
 }
 
 /**
@@ -33,4 +47,12 @@ export class DataTable<T> {
 
   /** The empty row spans the same number of cells as a populated row, including row actions. */
   protected readonly colspan = computed(() => this.columns().length + (this.rowActions() ? 1 : 0));
+
+  protected cellText(column: DataTableColumn<T>, row: T): string | number | null {
+    return column.value ? column.value(row) : '';
+  }
+
+  protected cellTag(column: DataTableColumn<T>, row: T): DataTableTag | null {
+    return column.tag ? column.tag(row) : null;
+  }
 }

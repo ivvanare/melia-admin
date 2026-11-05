@@ -21,7 +21,7 @@ const COLUMNS: readonly DataTableColumn<Row>[] = [
     </ng-template>
     <app-data-table
       [rows]="rows"
-      [columns]="columns"
+      [columns]="tagged ? taggedColumns : columns"
       caption="Example rows"
       empty="No example rows"
       [rowActions]="showActions ? actions : undefined"
@@ -30,8 +30,16 @@ const COLUMNS: readonly DataTableColumn<Row>[] = [
 })
 class DataTableHost {
   readonly columns = COLUMNS;
+  readonly taggedColumns: readonly DataTableColumn<Row>[] = [
+    { label: 'Name', value: (row) => row.name },
+    {
+      label: 'Code',
+      tag: (row) => ({ label: row.code, variant: row.code === 'ok' ? 'ok' : 'warn' }),
+    },
+  ];
   rows: readonly Row[] = [];
   showActions = false;
+  tagged = false;
 }
 
 describe('DataTable', () => {
@@ -39,6 +47,7 @@ describe('DataTable', () => {
     const fixture = TestBed.createComponent(DataTableHost);
     fixture.componentInstance.rows = host.rows;
     fixture.componentInstance.showActions = host.showActions;
+    fixture.componentInstance.tagged = host.tagged;
     fixture.detectChanges();
     await fixture.whenStable();
     return fixture.nativeElement as HTMLElement;
@@ -83,5 +92,20 @@ describe('DataTable', () => {
     const withActions = await render(host);
     expect(withActions.querySelector('th.actions')).not.toBeNull();
     expect(withActions.querySelector('td.actions .row-action')?.textContent?.trim()).toBe('Alpha');
+  });
+
+  it('renders a tag column as a design-system pill instead of text', async () => {
+    const host = new DataTableHost();
+    host.tagged = true;
+    host.rows = [{ name: 'Ana', code: 'ok' }, { name: 'Luis', code: 'suspended' }];
+    const element = await render(host);
+
+    const pills = [...element.querySelectorAll('span.tag')];
+    expect(pills).toHaveLength(2);
+    expect(pills[0]!.textContent?.trim()).toBe('ok');
+    expect(pills[0]!.className).toContain('ok');
+    expect(pills[1]!.className).toContain('warn');
+    // The value function is absent on a tag column: nothing renders it twice.
+    expect(element.querySelectorAll('td')).toHaveLength(4);
   });
 });
