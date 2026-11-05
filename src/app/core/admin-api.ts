@@ -33,6 +33,28 @@ export interface Role {
   permissions: string[];
 }
 
+export type ReviewStatus = 'ACTIVE' | 'INACTIVE' | 'MODERATED';
+
+/**
+ * `Review` in `api/openapi.yaml`, as the moderation listing returns it.
+ *
+ * `viaFollowedAuthor` is viewer-relative — true when the reader follows the author — so it
+ * describes this read, not the row. Moderation never uses it, and storing it under a key that
+ * lacks the viewer would be a bug; it stays only because the wire schema requires it.
+ */
+export interface AdminReview {
+  coReview: string;
+  coPlace: string;
+  rating: number;
+  comment: string | null;
+  status: ReviewStatus;
+  /** Display-safe author fields: the API never exposes the address here. */
+  author: { id: string; name: string | null };
+  createdAt: string;
+  updatedAt: string;
+  viaFollowedAuthor: boolean;
+}
+
 /** `Permission` in `api/openapi.yaml`. */
 export interface Permission {
   id: string;
@@ -66,6 +88,13 @@ export interface UsersQuery extends PageQuery {
   /** Case-insensitive match on name or email. */
   q?: string | null;
   status?: UserStatus | null;
+}
+
+export interface AdminReviewsQuery extends PageQuery {
+  /** Omitted means every status, moderated and logically deleted rows included. */
+  status?: ReviewStatus | null;
+  placeId?: string | null;
+  authorId?: string | null;
 }
 
 export interface AuditQuery extends PageQuery {
@@ -147,6 +176,37 @@ export class AdminApi {
       this.http.patch<UserSummary>(
         `${this.baseUrl}/admin/users/${encodeURIComponent(userId)}/roles`,
         { roles },
+      ),
+    );
+  }
+
+  /**
+   * The moderation listing: newest first, every filter optional.
+   *
+   * It deliberately ignores the public visibility predicate, so it returns moderated and
+   * logically deleted reviews too. A screen must show the state per row and never filter what
+   * this returns by "the public listing would not show it".
+   */
+  listAdminReviews(query: AdminReviewsQuery): Promise<Page<AdminReview>> {
+    return firstValueFrom(
+      this.http.get<Page<AdminReview>>(`${this.baseUrl}/admin/reviews`, {
+        params: toParams({
+          page: query.page,
+          limit: query.limit,
+          status: query.status,
+          placeId: query.placeId,
+          authorId: query.authorId,
+        }),
+      }),
+    );
+  }
+
+  /** Changes one review's status. Moderating neither deletes it nor blocks its author. */
+  setReviewStatus(coReview: string, status: ReviewStatus): Promise<AdminReview> {
+    return firstValueFrom(
+      this.http.patch<AdminReview>(
+        `${this.baseUrl}/admin/reviews/${encodeURIComponent(coReview)}`,
+        { status },
       ),
     );
   }

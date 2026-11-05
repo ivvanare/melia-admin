@@ -75,7 +75,7 @@ export const PANEL_GROUPS: readonly PanelGroup[] = [
         label: 'Reviews',
         description: 'Moderation and history',
         icon: 'reviews',
-        status: 'soon',
+        status: 'live',
         permission: 'review.moderate',
       },
       {

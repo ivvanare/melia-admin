@@ -100,17 +100,7 @@ export const routes: Routes = [
       {
         path: 'reviews',
         title: 'Reviews — melZone panel',
-        loadComponent: () => import('./panel/soon/soon').then((m) => m.Soon),
-        data: {
-          title: 'Reviews',
-          description: 'One review per person and venue, moderated from here.',
-          permission: 'review.moderate',
-          bullets: [
-            'Moderate a review without deleting the author record',
-            'Rating history per venue, so a pattern is visible',
-            'Every moderation lands in the audit log',
-          ],
-        },
+        loadComponent: () => import('./panel/reviews/reviews').then((m) => m.Reviews),
       },
       {
         path: 'routes',
