@@ -293,5 +293,8 @@ properties of those writes, each of which has already caused a bug elsewhere:
   `code`, while the catalogue's uuid only identifies the row. Reusing the vocabulary from an endpoint is
   the only way to keep the options honest — hardcoding codes is the mistake the id-field rule forbids.
 
-Photos remain the one place-content gap, and it is not an API gap: nothing ships until the human decides
-where the files live.
+**Photos** are the last place-content gap. The decision taken: **a local volume for dev**, revisited before
+any production release — a container-local volume is lost when the container is recreated, so it is a
+development answer, not a deployment one. Nothing is built until the API exposes the upload routes;
+the panel will send bytes, never a path, and the contract has to say where the files are served from so
+a preview can be rendered.
