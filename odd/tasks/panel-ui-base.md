@@ -44,10 +44,12 @@ Test runners: `npx ng test admin --watch=false`; `tsc --noEmit` for `tsconfig.ap
 | T1 | S4, S7 | done | `<app-data-table>` + its spec: columns, rows, empty state, actions column, caption |
 | T2 | S5, S7 | done | Dialog shell component + its spec: lead, two columns, legends, both error slots |
 | T3 | S6 | done | Places renders its table view through `<app-data-table>` and its dialog through the shell |
-| T4 | S6 | dropped | Roles keeps its table: its status column is a tag, the fixed cell API cannot express one, and S8 forbids growing a per-cell escape hatch for a single screen. Recorded as a deliberate non-migration, not a gap |
+| T4 | S6 | dropped | Roles keeps its table: its status column is a tag, the fixed cell API cannot express one, and S8 forbids growing a per-cell escape hatch for a single screen. Recorded as a deliberate non-migration. Note: the tag variant added in T8 removed the colour blocker; what still stops Roles is its module group headers, not the pill |
 | T5 | S3, S6 | done | Users' three dialogs move onto the shell, keeping their current fields and texts |
 | T6 | S6, S7 | done | `tsc` app + spec, full suite, `ng build` |
 | T7 | S2 | done | Record the forward rule where the next author will read it |
+| T8 | S2, S6 | done | Users renders its rows through `<app-data-table>`, with its own query state (search, status, scope, paging, row actions) instead of `crud-list-screen` |
+| T9 | S2, S6 | done | Audit renders its rows through `<app-data-table>`, keeping the exact-event filter, the user and email-hash filters and the two `datetime-local` range inputs |
 
 ## Log
 
@@ -72,3 +74,24 @@ Test runners: `npx ng test admin --watch=false`; `tsc --noEmit` for `tsconfig.ap
   through them, and the three Users dialogs moved onto the shell with their fields and texts intact.
   The invitation dialog keeps working because `users.ts` gained the one import the standalone
   component needs. Roles was deliberately left on its own markup (T4, dropped).
+- **L6** (scope, user): after the API session announced the discovery endpoints, the human chose to keep
+  closing panel debt rather than start the reviews screen. T4 stays dropped; T8 and T9 finish the
+  migration so the second table language disappears from the panel.
+- **L7** (finding, parent): the audit spec pins engine details, not just rendering —
+  `filters['event_eq']` on the transport, no `input[type="search"]`, and exactly two
+  `input[type="datetime-local"]`. The migration must therefore reproduce the transport's filter keys
+  (`field_kind`) exactly, keep both date inputs, and must not add a search box. `AdminTransport.list`
+  stays the seam, so the engine can leave without the API contract moving.
+- **L8** (decision, parent): migrating Users would have degraded the status column from a pill to plain
+  text, and Roles was blocked for the same reason. Degrading a screen to fit a component is the wrong
+  trade, so `app-data-table` gained a **declarative** `tag?: (row) => { label, variant }` column: still
+  one of the design system's own components (`.tag`), not a per-cell template escape hatch. S8 holds.
+- **L9** (delivered, parent): T8 and T9 landed inline after the delegated writer failed three times with
+  `provider_unavailable` (the third attempt wrote nothing). Audit and Users now render through
+  `<app-data-table>` with their own query state; `AdminTransport.list` stayed the seam, so no API
+  contract moved. The engine-specific bindings the audit spec pins are preserved exactly
+  (`filters['event_eq']`, no `input[type="search"]`, two `input[type="datetime-local"]`), and Users
+  keeps its `Edit`/`Roles`/`Send reset` row actions and `Invite user` header action. Verified: `tsc`
+  app and spec exit 0, `ng test admin` **119 tests / 24 files green** with both specs unedited,
+  `ng build` green. `crud-list-screen` no longer renders any panel screen; `ng-crud-maker` stays as a
+  dependency for `ListQuery`, the demo screen and the transport contract.
