@@ -1,0 +1,372 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1440">
+<title>Places — 01 · tabla densa y panel lateral</title>
+<style>
+  :root {
+    --ink:#0b1220; --ink-2:#111c31; --nav:#0f1a2b; --nav-2:#16233a;
+    --canvas:#f5f7fa; --surface:#fff; --surface-muted:#fcfdfe; --surface-2:#f8fafc;
+    --slate:#475569; --muted:#64748b;
+    --line:#e3e8ef; --line-soft:#f0f3f8;
+    --accent:#4338ca; --accent-hover:#372fb0; --accent-soft:#eef0fe; --accent-ring:#8b87f8;
+    --teal:#0e7490; --ok:#047857; --warn:#b45309; --danger:#b91c1c;
+    --radius:12px; --radius-sm:9px; --radius-pill:999px;
+    --shadow-sm:0 1px 2px rgba(11,18,32,.06); --shadow-lg:0 34px 60px -46px rgba(11,18,32,.6);
+    --pill-bg:#eef1f6; --pill-ink:#5a6779;
+    --tag-ok-bg:#e9f5ee; --tag-ok-ink:#046c4e; --tag-warn-bg:#fdf3e3; --tag-warn-ink:#8a5008;
+    --tag-info-bg:var(--accent-soft); --tag-info-ink:#3730a3;
+    --tag-neutral-bg:#eef1f6; --tag-neutral-ink:#5a6779; --tag-danger-bg:#fdecec; --tag-danger-ink:#991b1b;
+    --alert-bg:#fdf3f3; --alert-line:#f3d2d2; --alert-ink:#8f1d1d; --alert-code-bg:#f7e3e3;
+    --on-accent:#fff;
+    --font-sans:ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+    --font-mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--canvas);color:var(--ink);font-family:var(--font-sans);font-size:14px;line-height:1.55;-webkit-font-smoothing:antialiased}
+  h1,h2,h3{margin:0;letter-spacing:-.02em} p{margin:0}
+  :focus-visible{outline:3px solid var(--accent-ring);outline-offset:2px;border-radius:6px}
+  .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+  /* ---- role switch (the only JS-free state in this artboard) ---- */
+  .role-in{position:absolute;opacity:0;pointer-events:none}
+  body:has(#as-admin:checked) .only-owner{display:none!important}
+  body:has(#as-owner:checked) .only-admin{display:none!important}
+  body:has(#as-admin:checked) .admin-cap{display:flex!important}
+  body:has(#as-owner:checked) .owner-cap{display:flex!important}
+
+  .app{display:grid;grid-template-columns:248px 1fr;min-height:900px}
+
+  /* ---- sidebar ---- */
+  aside{background:var(--nav);color:#e6edf6;padding:18px 14px;display:flex;flex-direction:column;gap:22px}
+  .brand{display:flex;align-items:center;gap:9px;padding:4px 8px 0}
+  .brand .mark{width:26px;height:26px;border-radius:8px;background:var(--accent);display:grid;place-items:center;color:#fff;font-weight:700;font-size:13px}
+  .brand strong{font-size:14px;letter-spacing:-.01em}
+  .brand small{color:#93a4b8;font-size:10.5px;display:block;letter-spacing:.06em;text-transform:uppercase}
+  nav .group{margin-top:16px}
+  nav .group > span{display:block;padding:0 10px 6px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#7c8ca3;font-weight:700}
+  nav a{display:flex;align-items:center;gap:9px;padding:7px 10px;border-radius:8px;color:#c3d0e0;font-size:13px;text-decoration:none}
+  nav a svg{width:15px;height:15px;flex:0 0 15px;stroke:currentColor;fill:none;stroke-width:1.7}
+  nav a.active{background:var(--nav-2);color:#fff;font-weight:650;box-shadow:inset 2px 0 0 var(--accent)}
+  nav a .soon{margin-left:auto;font-size:9.5px;color:#7c8ca3;background:rgba(255,255,255,.07);border-radius:var(--radius-pill);padding:1px 6px}
+  .side-foot{margin-top:auto;border-top:1px solid rgba(255,255,255,.08);padding:12px 10px 0;font-size:11.5px;color:#93a4b8}
+  .side-foot strong{color:#e6edf6;display:block;font-size:12.5px;font-weight:650}
+
+  /* ---- main ---- */
+  main{padding:26px 30px 40px;min-width:0}
+  .topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:22px}
+  .crumb{font-size:12px;color:var(--muted)}
+  .top-right{display:flex;align-items:center;gap:10px}
+  .role-switch{display:flex;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-pill);padding:3px;box-shadow:var(--shadow-sm)}
+  .role-switch label{cursor:pointer;font-size:11.5px;font-weight:650;color:var(--muted);padding:5px 12px;border-radius:var(--radius-pill);display:inline-flex;align-items:center;gap:6px}
+  .role-switch label .dot{width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.5}
+  body:has(#as-owner:checked) label[for=as-owner],
+  body:has(#as-admin:checked) label[for=as-admin]{background:var(--accent);color:#fff}
+  .avatar{width:30px;height:30px;border-radius:50%;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;font-size:12px;font-weight:700;border:1px solid #dcd9fb}
+
+  .pagehead{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;margin-bottom:16px}
+  .pagehead h1{font-size:22px;font-weight:700}
+  .pagehead p{margin-top:4px;color:var(--muted);font-size:13px}
+
+  .toolbar{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px;align-items:end}
+  .toolbar .field{display:grid;gap:5px;font-size:12px;color:var(--muted);flex:1;min-width:220px;max-width:340px}
+  .toolbar .field.narrow{max-width:180px}
+  .toolbar input,.toolbar select{font:inherit;font-size:13px;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-sm);padding:8px 11px}
+  .toolbar .spacer{flex:1}
+
+  .layout{display:grid;grid-template-columns:1fr 408px;gap:18px;align-items:start}
+
+  .table-wrap{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow-sm)}
+  .panel-table{width:100%;border-collapse:collapse}
+  .panel-table th,.panel-table td{text-align:left;padding:9px 16px;font-size:12.5px;border-bottom:1px solid var(--line-soft);vertical-align:middle}
+  .panel-table th{font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:#8592a6;font-weight:700;background:var(--surface-muted)}
+  .panel-table tbody tr:last-child td{border-bottom:0}
+  .panel-table tbody tr.selected{background:var(--accent-soft)}
+  .panel-table .mono{font-family:var(--font-mono);font-size:11.5px}
+  .panel-table .muted{color:var(--muted)}
+  .panel-table .actions{text-align:right;white-space:nowrap}
+  .pager{display:flex;align-items:center;gap:14px;margin-top:14px;font-size:12.5px;color:var(--muted)}
+
+  .tag{display:inline-flex;align-items:center;gap:5px;border-radius:var(--radius-pill);padding:2px 8px;font-size:11px;font-weight:650;line-height:1.5}
+  .tag.ok{background:var(--tag-ok-bg);color:var(--tag-ok-ink)}
+  .tag.warn{background:var(--tag-warn-bg);color:var(--tag-warn-ink)}
+  .tag.info{background:var(--tag-info-bg);color:var(--tag-info-ink)}
+  .tag.neutral{background:var(--tag-neutral-bg);color:var(--tag-neutral-ink)}
+  .tag.danger{background:var(--tag-danger-bg);color:var(--tag-danger-ink)}
+
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border-radius:var(--radius-sm);border:1px solid transparent;padding:8px 14px;font:inherit;font-size:13px;font-weight:650;cursor:pointer;transition:background .16s ease,border-color .16s ease,color .16s ease}
+  .btn.primary{background:var(--accent);color:var(--on-accent)}
+  .btn.primary:hover{background:var(--accent-hover)}
+  .btn.secondary{background:var(--surface);border-color:var(--line);color:var(--ink)}
+  .btn.secondary:hover{border-color:#cbd5e1}
+  .btn.ghost{background:transparent;color:var(--slate);padding:6px 8px;font-size:12.5px}
+  .btn.danger{background:transparent;border-color:var(--alert-line);color:var(--danger);padding:6px 10px;font-size:12.5px}
+  .btn.sm{padding:5px 10px;font-size:12px}
+
+  /* ---- drawer ---- */
+  .drawer{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow-lg);overflow:hidden;position:sticky;top:26px}
+  .drawer header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:16px 18px 12px;border-bottom:1px solid var(--line)}
+  .drawer header h2{font-size:15px;font-weight:700}
+  .drawer header p{font-size:12px;color:var(--muted);margin-top:2px;font-family:var(--font-mono)}
+  .drawer .body{padding:4px 18px 16px}
+  .fieldset{padding:14px 0;border-bottom:1px solid var(--line-soft)}
+  .fieldset:last-of-type{border-bottom:0}
+  .fieldset > h3{font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:#8592a6;font-weight:700;margin-bottom:10px}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .f{display:grid;gap:5px;margin-bottom:10px}
+  .f:last-child{margin-bottom:0}
+  .f label{font-size:12px;color:var(--muted)}
+  .f input,.f select,.f textarea{font:inherit;font-size:13px;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-sm);padding:8px 11px;width:100%}
+  .f textarea{min-height:74px;resize:vertical;line-height:1.5}
+  .f .hint{font-size:11px;color:var(--muted);margin:0}
+  .f .locked{background:var(--surface-2);color:var(--muted);border-style:dashed}
+  .drawer footer{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 18px;border-top:1px solid var(--line);background:var(--surface-2)}
+  .drawer footer .right{display:flex;gap:8px}
+
+  .note{display:none;align-items:flex-start;gap:9px;margin:0 18px 16px;padding:10px 12px;border-radius:var(--radius-sm);font-size:12px;line-height:1.45}
+  .note svg{width:14px;height:14px;flex:0 0 14px;margin-top:2px;stroke:currentColor;fill:none;stroke-width:1.8}
+  .note.owner{background:var(--tag-info-bg);color:var(--tag-info-ink);border:1px solid #dcd9fb}
+  .note.admin{background:var(--tag-warn-bg);color:var(--tag-warn-ink);border:1px solid #f3dfbe}
+
+  .callout{margin-top:18px;padding:14px 16px;border:1px dashed #cbd5e1;border-radius:var(--radius);background:var(--surface);font-size:12.5px;color:var(--slate);max-width:900px}
+  .callout strong{color:var(--ink)}
+</style>
+</head>
+<body>
+<input class="role-in" type="radio" name="as" id="as-owner" checked>
+<input class="role-in" type="radio" name="as" id="as-admin">
+
+<div class="app">
+  <aside>
+    <div class="brand">
+      <span class="mark">m</span>
+      <span><strong>melZone</strong><small>Panel</small></span>
+    </div>
+    <nav aria-label="Módulos del panel">
+      <div class="group">
+        <span>General</span>
+        <a href="#"><svg viewBox="0 0 24 24"><path d="M4 11.5 12 4l8 7.5V20H4z"/></svg>Overview</a>
+        <a class="active" href="#"><svg viewBox="0 0 24 24"><path d="M12 21s7-5.4 7-11a7 7 0 1 0-14 0c0 5.6 7 11 7 11Z"/><circle cx="12" cy="10" r="2.4"/></svg>Places</a>
+        <a href="#"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h11M4 18h7"/></svg>Menus</a>
+        <a class="only-admin" href="#"><svg viewBox="0 0 24 24"><path d="m12 4 2.4 5 5.6.8-4 3.9 1 5.5-5-2.7-5 2.7 1-5.5-4-3.9 5.6-.8Z"/></svg>Reviews<span class="soon">pronto</span></a>
+        <a class="only-admin" href="#"><svg viewBox="0 0 24 24"><path d="M6 18.2a2.4 2.4 0 1 0 0-4.8 2.4 2.4 0 0 0 0 4.8Z"/><path d="M18 8.6a2.4 2.4 0 1 0 0-4.8 2.4 2.4 0 0 0 0 4.8Z"/><path d="M8.2 15.4 15.8 8.6"/></svg>Routes<span class="soon">pronto</span></a>
+      </div>
+      <div class="group only-admin">
+        <span>Administración</span>
+        <a href="#"><svg viewBox="0 0 24 24"><path d="M9 11.7a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4Z"/><path d="M3.5 19.5c.6-3 2.8-4.6 5.5-4.6s4.9 1.6 5.5 4.6"/></svg>Users</a>
+        <a href="#"><svg viewBox="0 0 24 24"><path d="M7 10V7.6a5 5 0 0 1 10 0V10"/><path d="M4.5 10h15v10h-15z"/></svg>Roles &amp; permissions</a>
+        <a href="#"><svg viewBox="0 0 24 24"><path d="M6 4h9l4 4v12H6z"/><path d="M9.5 12h6M9.5 15.5h4"/></svg>Audit log</a>
+      </div>
+      <div class="group">
+        <span>Cuenta</span>
+        <a href="#"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.4"/><circle cx="12" cy="10" r="2.6"/><path d="M7.4 18.4c.8-2.2 2.5-3.4 4.6-3.4s3.8 1.2 4.6 3.4"/></svg>Mi cuenta</a>
+      </div>
+    </nav>
+    <div class="side-foot">
+      <span class="only-owner"><strong>Ana Rondón</strong>Dueña · Melia Centro</span>
+      <span class="only-admin"><strong>Ivan Are</strong>SUPERADMIN · plataforma</span>
+    </div>
+  </aside>
+
+  <main>
+    <div class="topbar">
+      <span class="crumb">General / Places</span>
+      <div class="top-right">
+        <div class="role-switch" role="group" aria-label="Vista del artboard">
+          <label for="as-owner"><span class="dot"></span>Dueño</label>
+          <label for="as-admin"><span class="dot"></span>Superadmin</label>
+        </div>
+        <span class="avatar" aria-hidden="true">A</span>
+      </div>
+    </div>
+
+    <div class="pagehead">
+      <div>
+        <h1>Places</h1>
+        <p class="only-owner">3 locales tuyos · editás la ficha de cada uno; no podés crear ni eliminar</p>
+        <p class="only-admin">23 locales · todos, con su dueño y la opción de reasignarlo</p>
+      </div>
+      <button class="btn primary only-admin" type="button">Nuevo place</button>
+    </div>
+
+    <div class="toolbar">
+      <label class="field">Buscar por nombre, título o dirección
+        <input value="melia">
+      </label>
+      <label class="field narrow">Estado
+        <select><option>Todos</option><option>ACTIVE</option><option>SUSPENDED</option></select>
+      </label>
+      <label class="field narrow only-admin">Alcance
+        <select><option>Todos los locales</option><option>Sin dueño</option><option>Míos</option></select>
+      </label>
+      <label class="field narrow only-owner">Alcance
+        <select disabled><option>Solo mis locales</option></select>
+      </label>
+      <span class="spacer"></span>
+    </div>
+
+    <div class="layout">
+      <div>
+        <div class="table-wrap">
+          <table class="panel-table">
+            <caption class="sr-only">Locales con su dueño y estado</caption>
+            <thead>
+              <tr>
+                <th>Nombre</th><th>Categoría</th>
+                <th class="only-admin">Dueño</th>
+                <th>Estado</th><th class="actions">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="selected">
+                <td><strong>Melia Centro</strong><br><span class="muted">Av. Bolívar 45</span></td>
+                <td>Hotel</td>
+                <td class="mono only-admin">ana@melia.test</td>
+                <td><span class="tag ok">ACTIVE</span></td>
+                <td class="actions"><button class="btn ghost" type="button">Editar</button></td>
+              </tr>
+              <tr class="only-owner">
+                <td><strong>Melia La Terraza</strong><br><span class="muted">Calle 8 con 5</span></td>
+                <td>Café</td>
+                <td><span class="tag ok">ACTIVE</span></td>
+                <td class="actions"><button class="btn ghost" type="button">Editar</button></td>
+              </tr>
+              <tr class="only-owner">
+                <td><strong>Arepera Los Nogales</strong><br><span class="muted">Carrera 19 #4-2</span></td>
+                <td>Arepera</td>
+                <td><span class="tag warn">SUSPENDED</span></td>
+                <td class="actions"><button class="btn ghost" type="button">Editar</button></td>
+              </tr>
+              <tr class="only-admin">
+                <td><strong>Arepera El Parque</strong><br><span class="muted">Parque Los Caobos</span></td>
+                <td>Arepera</td>
+                <td class="mono">—</td>
+                <td><span class="tag warn">SUSPENDED</span></td>
+                <td class="actions"><button class="btn ghost" type="button">Editar</button></td>
+              </tr>
+              <tr class="only-admin">
+                <td><strong>Ruta del Café</strong><br><span class="muted">Sin dirección</span></td>
+                <td>Café</td>
+                <td class="muted">curado por la plataforma</td>
+                <td><span class="tag ok">ACTIVE</span></td>
+                <td class="actions"><button class="btn ghost" type="button">Editar</button></td>
+              </tr>
+              <tr class="only-admin">
+                <td><strong>Hotel Miramar</strong><br><span class="muted">Paseo Colón 210</span></td>
+                <td>Hotel</td>
+                <td class="mono">luis@miramar.test</td>
+                <td><span class="tag ok">ACTIVE</span></td>
+                <td class="actions"><button class="btn ghost" type="button">Editar</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="pager">
+          <span class="only-owner">1–3 de 3</span>
+          <span class="only-admin">1–5 de 23</span>
+          <button class="btn secondary sm" type="button">Anterior</button>
+          <button class="btn secondary sm" type="button">Siguiente</button>
+        </div>
+      </div>
+
+      <aside class="drawer" aria-label="Editar Melia Centro" style="padding:0;background:var(--surface)">
+        <header>
+          <div>
+            <h2>Melia Centro</h2>
+            <p>place_9f1c4a1e</p>
+          </div>
+          <button class="btn ghost" type="button" aria-label="Cerrar">✕</button>
+        </header>
+
+        <div class="note owner">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
+          <span>Sos dueño de este local. Podés editar la ficha; crear, eliminar y cambiar el dueño queda en la plataforma.</span>
+        </div>
+        <div class="note admin">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
+          <span>Como superadmin ves y editás cualquier local. Reasignar el dueño se audita con quién lo hizo.</span>
+        </div>
+
+        <div class="body">
+          <div class="fieldset">
+            <h3>Identidad</h3>
+            <div class="f">
+              <label for="d-name">Nombre real / legal</label>
+              <input id="d-name" value="Inversiones Melia C.A.">
+            </div>
+            <div class="f">
+              <label for="d-title">Título comercial</label>
+              <input id="d-title" value="Melia Centro">
+              <p class="hint">Es el nombre que ve el usuario en la app.</p>
+            </div>
+            <div class="row">
+              <div class="f">
+                <label for="d-cat">Categoría</label>
+                <select id="d-cat"><option>Hotel</option><option>Arepera</option><option>Café</option><option>Parque</option></select>
+              </div>
+              <div class="f">
+                <label for="d-status">Estado</label>
+                <select id="d-status"><option>ACTIVE</option><option>SUSPENDED</option></select>
+              </div>
+            </div>
+          </div>
+
+          <div class="fieldset">
+            <h3>Descripción</h3>
+            <div class="f">
+              <label for="d-desc">Texto público</label>
+              <textarea id="d-desc">Hotel boutique en el centro de la ciudad. Desayuno incluido, terraza con vista y estacionamiento propio.</textarea>
+              <p class="hint">Hasta 600 caracteres. Se muestra en la ficha del local dentro de la app.</p>
+            </div>
+          </div>
+
+          <div class="fieldset">
+            <h3>Ubicación y contacto</h3>
+            <div class="f">
+              <label for="d-addr">Dirección</label>
+              <input id="d-addr" value="Av. Bolívar 45, Melia">
+            </div>
+            <div class="row">
+              <div class="f"><label for="d-lat">Latitud</label><input id="d-lat" class="mono" value="10.480594"></div>
+              <div class="f"><label for="d-lng">Longitud</label><input id="d-lng" class="mono" value="-66.903606"></div>
+            </div>
+            <div class="row">
+              <div class="f"><label for="d-ig">Instagram</label><input id="d-ig" value="@meliacentro"></div>
+              <div class="f"><label for="d-web">Web</label><input id="d-web" value="melia.test"></div>
+            </div>
+          </div>
+
+          <div class="fieldset only-admin">
+            <h3>Propiedad</h3>
+            <div class="f">
+              <label for="d-owner">Dueño</label>
+              <select id="d-owner"><option>ana@melia.test</option><option>luis@miramar.test</option><option>Sin dueño (curado por plataforma)</option></select>
+              <p class="hint">Reasignar cambia quién puede editar esta ficha.</p>
+            </div>
+          </div>
+        </div>
+
+        <footer>
+          <button class="btn danger only-admin" type="button">Eliminar local</button>
+          <span class="only-owner"></span>
+          <div class="right">
+            <button class="btn secondary" type="button">Cancelar</button>
+            <button class="btn primary" type="button">Guardar cambios</button>
+          </div>
+        </footer>
+      </aside>
+    </div>
+
+    <p class="callout">
+      <strong>Dirección 01 — tabla densa + panel lateral.</strong> La lista manda y el panel aparece al
+      costado, sin tapar la tabla: se edita sin perder de vista el resto de los locales. El costo es que
+      el formulario compite por ancho con la tabla, así que horarios y fotos —que son listas— terminan en
+      pestañas o en un segundo paso. Con el conmutador de arriba se ven las dos sesiones: el dueño pierde
+      el botón de crear, la columna Dueño y el borrado; el superadmin los recupera y suma el filtro de alcance.
+    </p>
+  </main>
+</div>
+</body>
+</html>

@@ -1,0 +1,27 @@
+<div class="dialog">
+  @if (lead()) {
+    <p class="lead">{{ lead() }}</p>
+  }
+
+  @if (errors().length > 0) {
+    <div class="alert" role="alert">
+      <span>
+        @for (error of errors(); track $index) {
+          {{ error }}
+        }
+      </span>
+    </div>
+  }
+
+  @if (errorCode(); as code) {
+    <p class="save-error" role="alert">
+      <ng-content select="[slot=error-message]" />
+      <code>{{ code }}</code>
+    </p>
+  }
+
+  <div class="columns">
+    <ng-content select="[slot=left]" />
+    <ng-content select="[slot=right]" />
+  </div>
+</div>

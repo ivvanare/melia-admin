@@ -325,6 +325,379 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/places": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Discover places by radius (list) or viewport (map)
+         * @description One route, two modes, decided by the locator parameter:
+         *
+         *     - **List mode** — `near=lat,long` (latitude first) with optional `radius` in
+         *       metres. Paginated, sortable.
+         *     - **Map mode** — `bbox=minLon,minLat,maxLon,maxLat` (longitude first, like
+         *       GeoJSON) with a required `zoom`. Returns H3 clusters instead of places.
+         *
+         *     Exactly one locator is required: sending both or neither is `422
+         *     validation_failed` (`{field: "bbox", code: "invalid"}` when both are present,
+         *     `{field: "locator", code: "required"}` when neither is). Anti-meridian
+         *     crossing is out of scope and rejected.
+         *
+         *     The request coordinate is evaluated and discarded: never persisted, never
+         *     logged, never part of a cache key.
+         *
+         *     `sort` applies to list mode only. `trending` reads the ranking the worker
+         *     publishes per H3 zone cell; when the zone has no ranking the API falls back
+         *     to `rating` and answers `degraded: true`, so a client can tell a cold
+         *     ranking from an unpopular place. The read path never aggregates reviews in a
+         *     request.
+         *
+         *     Map mode caps the viewport query at 5000 rows. An oversized bbox (over
+         *     100 000 km²) is rejected `422` `{field: "bbox", code: "too_long"}` rather
+         *     than silently truncated; if the cap is hit anyway, `truncated: true` and
+         *     cluster counts describe the sample, not the total. A cluster is a zone: it
+         *     carries counts and neutral aggregates and no administrative name.
+         *
+         *     `q`, `dish`, `attributes`, `maxPrice` and `openAt` are valid in both modes
+         *     and compose with the locator and with each other. `q` and `dish` are two
+         *     different questions: the first searches the place's commercial name, the
+         *     second searches menu items and returns the places that carry a match —
+         *     both accent-insensitive with no stemming. `attributes` is conjunctive: a
+         *     place must carry every listed code. `maxPrice` is always USD; an item
+         *     priced in another currency never matches, which is documented behaviour.
+         *     `openAt` is answered from the place's schedule in the place's own
+         *     timezone, including schedules that close after midnight. A search with no
+         *     matches is `200` with an empty page, never `404`.
+         */
+        get: operations["discoverPlaces"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/places/{coPlace}/reviews": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the reviews of a place
+         * @description Public and paginated, newest first. The read never aggregates reviews for
+         *     ordering: the place average belongs to the worker, not to a request.
+         *
+         *     Visibility depends on the viewer. Everyone sees reviews that are `ACTIVE` and
+         *     not deleted. The author additionally sees their own rows in any state
+         *     (`INACTIVE`, `MODERATED`, logically deleted), and so does a caller holding
+         *     `review.moderate`. Both are resolved from the bearer token when one is sent;
+         *     the route itself requires no authentication.
+         *
+         *     A place that is soft-deleted or `INACTIVE` answers `404`, exactly like a place
+         *     that does not exist, so retired places cannot be enumerated.
+         */
+        get: operations["listPlaceReviews"];
+        put?: never;
+        /**
+         * Review a place
+         * @description Creates the caller's review of the place. One active review per user and
+         *     place is enforced by the partial unique index `ux_tb_review_user_place_active`
+         *     and surfaced as `409 review_already_exists` — never a pre-check, which would
+         *     race. A logically deleted review does not block reviewing again, which is
+         *     exactly why the index is partial.
+         *
+         *     The write announces the actor with `set_config('app.current_user_id', ...)` in
+         *     its transaction, so the history trigger records `co_actor_user`. The service
+         *     never inserts into `core.tb_review_history` itself.
+         *
+         *     `rating` is an integer in `1..5` (the table CHECK); `comment` is bounded to
+         *     2000 characters at the edge, not in the database.
+         */
+        post: operations["createReview"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/places/{coPlace}/reviews/{coReview}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete your own review
+         * @description Author-only: anyone else gets `403 permission_denied`. The delete is logical
+         *     (`dt_deleted_at`), never physical: the history trigger records the UPDATE,
+         *     and because the one-review index is partial, the author may review the place
+         *     again afterwards.
+         *
+         *     The write announces the actor with `set_config('app.current_user_id', ...)`,
+         *     so the history trigger records `co_actor_user`.
+         */
+        delete: operations["deleteReview"];
+        options?: never;
+        head?: never;
+        /**
+         * Edit your own review
+         * @description Author-only: anyone else gets `403 permission_denied`. At least one of
+         *     `rating` or `comment` is required. Editing does not change `tx_status` and
+         *     does not resurrect visibility of a `MODERATED` row. A logically deleted
+         *     review is `404`.
+         *
+         *     The write announces the actor with `set_config('app.current_user_id', ...)`,
+         *     so the history trigger records `co_actor_user`.
+         */
+        patch: operations["updateReview"];
+        trace?: never;
+    };
+    "/v1/place-categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the place category catalogue
+         * @description Public taxonomy, not customer data: the panel renders a select from it and the mobile
+         *     client renders the same list as discovery filters, so it is deliberately not behind a
+         *     backoffice permission.
+         *
+         *     `status=ACTIVE` returns only the selectable ones; omitting it returns the live
+         *     catalogue. Ordering is by name, so the vocabulary keeps a stable order between calls.
+         */
+        get: operations["listPlaceCategories"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/plans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List the plans the caller belongs to */
+        get: operations["listPlans"];
+        put?: never;
+        /**
+         * Create a plan
+         * @description The creator becomes `OWNER` in the same transaction. `visibility` defaults to
+         *     `PRIVATE`: a plan must never become public by omission.
+         */
+        post: operations["createPlan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/plans/{coRoute}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read one plan
+         * @description Visible to a member, and to any authenticated caller when the plan is `PUBLIC`.
+         *     Anything else is `404` — a private plan does not confirm that it exists.
+         */
+        get: operations["getPlan"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update a plan
+         * @description Requires `EDITOR` or `OWNER`. `visibility` is `OWNER` only: changing PRIVATE to PUBLIC
+         *     touches everyone already invited, and taking a public plan private hides it from the
+         *     people who joined. A visible plan with an insufficient role answers `403`; an invisible
+         *     one answers `404`.
+         */
+        patch: operations["updatePlan"];
+        trace?: never;
+    };
+    "/v1/plans/{coRoute}/members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Join a public plan
+         * @description Only a `PUBLIC` plan accepts a self-join, and it grants `VIEWER` — always. An open door
+         *     that hands out `EDITOR` is a plan anyone can rearrange and empty, and a festival is the
+         *     worst case. A private plan answers `404`, and joining twice changes nothing.
+         */
+        post: operations["joinPlan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/plans/{coRoute}/members/{coUser}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Leave a plan, or remove a member
+         * @description A caller may remove themselves; an `OWNER` may remove anyone else. An owner cannot leave
+         *     by themselves — a plan without an owner is invalid. Removing a non-member is a no-op
+         *     `204`.
+         */
+        delete: operations["leavePlan"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/places": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List places in the backoffice
+         * @description Requires `place.update`. The result is scoped by ownership: a caller holding
+         *     `place.manage_all` sees every place; everybody else sees only the rows whose
+         *     `coOwnerUser` is their own account. Curated places (owner NULL) therefore belong to
+         *     the backoffice and are invisible to an owner-editor.
+         *
+         *     By default the live catalogue is listed; `status=DELETED` lists the retired rows
+         *     instead, because a logical delete has to remain inspectable.
+         */
+        get: operations["listAdminPlaces"];
+        put?: never;
+        /**
+         * Create a place
+         * @description Requires `place.manage_all`: operating the whole catalogue. `admin.access` would be too
+         *     wide, because the seeded EDITOR role already holds it — that permission means "may
+         *     enter the backoffice", not "may create catalogue entries". `coOwnerUser` assigns the
+         *     owner; omit it for a row the backoffice curates itself.
+         */
+        post: operations["createAdminPlace"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/places/{coPlace}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read one place
+         * @description Requires `place.update`. Scoped by ownership: a row the caller may not see answers
+         *     `404`, not `403`, because a caller who may not see a row must not learn it exists.
+         */
+        get: operations["getAdminPlace"];
+        put?: never;
+        post?: never;
+        /**
+         * Retire a place
+         * @description Requires `place.delete`. Logical: the row stays and the public read paths (discovery,
+         *     reviews, check-ins) stop serving it. Nothing is physically removed.
+         */
+        delete: operations["retireAdminPlace"];
+        options?: never;
+        head?: never;
+        /**
+         * Update a place
+         * @description Requires `place.update`. Partial: an absent field is left alone, and an explicit
+         *     `null` clears a nullable one. Only a caller with `admin.access` may reassign
+         *     `coOwnerUser` — ownership is not something an owner hands over.
+         */
+        patch: operations["updateAdminPlace"];
+        trace?: never;
+    };
+    "/v1/admin/reviews": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List reviews for moderation
+         * @description Requires `review.moderate`. Exists because the moderation route takes a `coReview`
+         *     and nothing else can discover one: a moderator needs a page to work from.
+         *
+         *     Unlike the public listing this does not apply the visibility predicate — it returns
+         *     every review, including moderated and logically deleted ones, newest first. Each
+         *     filter is optional; the zero value lists everything.
+         */
+        get: operations["listAdminReviews"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/reviews/{coReview}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Moderate a review
+         * @description Requires `review.moderate`. Sets `tx_status` to one of the existing
+         *     `review_status` values (`ACTIVE`, `INACTIVE`, `MODERATED`) — moderation
+         *     invents no new permission and no new enum value. A `MODERATED` review stops
+         *     being returned to readers other than its author and moderators.
+         *
+         *     The write announces the actor with `set_config('app.current_user_id', ...)`,
+         *     so the history trigger records `co_actor_user` — the moderation funnel stays
+         *     measurable from `core.tb_review_history`.
+         */
+        patch: operations["moderateReview"];
+        trace?: never;
+    };
     "/v1/admin/users": {
         parameters: {
             query?: never;
@@ -496,10 +869,201 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/follows": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the graph in one direction
+         * @description `mutual` marks a friend: the opposite edge exists too. Computed per request and
+         *     never stored, because the graph changes daily.
+         */
+        get: operations["listFollows"];
+        put?: never;
+        /**
+         * Follow another account
+         * @description Asymmetric: following someone says nothing about whether they follow you back.
+         *     Idempotent — following twice leaves the graph unchanged and still answers `204`.
+         *     Following yourself is rejected by the service and by a CHECK constraint.
+         */
+        post: operations["followUser"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/follows/{coUser}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove a follow
+         * @description Idempotent — removing an edge that does not exist answers `204` too.
+         */
+        delete: operations["unfollowUser"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/places/{coPlace}/checkins": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Record presence at a place
+         * @description The coordinate proves presence and is then discarded: only the verdict `PROXIMITY`
+         *     is stored, never the coordinate and never the distance (D11). A claim outside the
+         *     place radius is refused with `422 not_near_place` rather than silently downgraded,
+         *     and a second check-in on the same day answers `409 already_checked_in` — the
+         *     uniqueness is a database rule, not a service guess.
+         */
+        post: operations["checkIn"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        PlaceCategory: {
+            /** Format: uuid */
+            coPlaceCategory: string;
+            /** @description Stable key, e.g. arepera. Use it in discovery filters. */
+            code: string;
+            name: string;
+            /** @enum {string} */
+            status: "ACTIVE" | "INACTIVE";
+        };
+        Plan: {
+            /** Format: uuid */
+            coRoute: string;
+            /**
+             * Format: uuid
+             * @description Creator.
+             */
+            coUser: string;
+            name: string;
+            description: string | null;
+            /** @enum {string} */
+            visibility: "PRIVATE" | "PUBLIC";
+            /** @enum {string} */
+            status: "ACTIVE" | "INACTIVE";
+            /** Format: date-time */
+            scheduledAt: string | null;
+            partySize: number | null;
+            /**
+             * @description The caller's role; empty when the plan is public and not joined.
+             * @enum {string}
+             */
+            viewerRole: "OWNER" | "EDITOR" | "VIEWER" | "";
+            memberCount: number;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        PlanWrite: {
+            name?: string;
+            description?: string | null;
+            /** @enum {string} */
+            visibility?: "PRIVATE" | "PUBLIC";
+            /**
+             * Format: date-time
+             * @description Absent means "no date yet", which is a real state.
+             */
+            scheduledAt?: string | null;
+            partySize?: number;
+        };
+        AdminPlace: {
+            /** Format: uuid */
+            coPlace: string;
+            /**
+             * Format: uuid
+             * @description NULL for a place the backoffice curates itself.
+             */
+            coOwnerUser: string | null;
+            /** @description Legal name. Admin-only; never in public reads. */
+            name: string;
+            /** @description Commercial name shown in the app. */
+            title: string;
+            description: string | null;
+            category: {
+                /** Format: uuid */
+                id: string;
+                name: string;
+            };
+            country: string;
+            region: string | null;
+            timezone: string;
+            latitude: number;
+            longitude: number;
+            address: string | null;
+            /** @enum {string} */
+            status: "ACTIVE" | "INACTIVE" | "SUSPENDED";
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: date-time */
+            deletedAt: string | null;
+        };
+        AdminPlaceWrite: {
+            /**
+             * Format: uuid
+             * @description Only a caller with admin.access may set or change it.
+             */
+            coOwnerUser?: string | null;
+            name?: string;
+            title?: string;
+            description?: string | null;
+            /** Format: uuid */
+            coPlaceCategory?: string;
+            country?: string;
+            region?: string | null;
+            /** @description IANA name */
+            timezone?: string;
+            latitude?: number;
+            longitude?: number;
+            address?: string | null;
+            /** @enum {string} */
+            status?: "ACTIVE" | "INACTIVE";
+        };
+        GraphMember: {
+            /** Format: uuid */
+            coUser: string;
+            name: string;
+            /** @description The opposite edge exists too — the computed friend. */
+            mutual: boolean;
+        };
+        Checkin: {
+            /** Format: uuid */
+            coCheckin: string;
+            /** Format: uuid */
+            coPlace: string;
+            /** @enum {string} */
+            verification: "SELF_REPORTED" | "PROXIMITY";
+            /** Format: date-time */
+            createdAt: string;
+        };
         Error: {
             /** @description Stable machine-readable code. Never parse `message`. */
             code: string;
@@ -622,6 +1186,139 @@ export interface components {
             page: number;
             limit: number;
             total: number;
+        };
+        PlaceListPage: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            mode: "list";
+            page: number;
+            limit: number;
+            total: number;
+            /**
+             * @description The order that actually ran, which may differ from the requested `sort`.
+             * @enum {string}
+             */
+            sortApplied: "distance" | "trending" | "rating";
+            /** @description `true` when a requested `trending` had no zone ranking and fell back to `rating`. A cold ranking is not an error. */
+            degraded: boolean;
+            data: components["schemas"]["PlaceSummary"][];
+        };
+        PlaceSummary: {
+            /** Format: uuid */
+            coPlace: string;
+            /** @description The commercial name (`tb_place.tx_title`). The legal name (`tx_name`) and the owner are never exposed in the discovery read path. */
+            name: string;
+            category: components["schemas"]["PlaceCategory"];
+            country: string;
+            region: string | null;
+            /** Format: double */
+            latitude: number;
+            /** Format: double */
+            longitude: number;
+            address: string | null;
+            /** @description Whole metres from `near`. Present in list mode; never fabricated. */
+            distanceMeters: number;
+            /** @description `null` when the worker has published no aggregate for the place. Absence is not an error. */
+            rating: components["schemas"]["Rating"] | null;
+            /** @description Present only when `sort=trending` and a zone ranking ordered the row. */
+            trendingRank?: number;
+        };
+        Rating: {
+            /**
+             * Format: double
+             * @example 4.6
+             */
+            average: number;
+            /** @example 128 */
+            count: number;
+        };
+        ClusterMap: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            mode: "map";
+            zoom: number;
+            /** @description The H3 resolution the clusters are grouped at, derived from `zoom`. */
+            resolution: number;
+            /** @description Places behind the clusters, not the number of clusters. */
+            total: number;
+            /** @description `true` when the 5000-row cap was hit: cluster counts describe the sample, never present them as totals. */
+            truncated: boolean;
+            clusters: components["schemas"]["Cluster"][];
+        };
+        Cluster: {
+            /**
+             * @description H3 index serialized as a hex string — JSON numbers lose precision above 2^53, and the index uses the full 64-bit range.
+             * @example 872830828ffffff
+             */
+            cell: string;
+            resolution: number;
+            count: number;
+            center: components["schemas"]["GeoPoint"];
+            /**
+             * Format: double
+             * @description Mean of the published place ratings in the cell. `null` when unknown, never `0`. A cluster is a zone — it carries no name, district or administrative claim.
+             */
+            averageRating: number | null;
+        };
+        GeoPoint: {
+            /** Format: double */
+            latitude: number;
+            /** Format: double */
+            longitude: number;
+        };
+        /**
+         * @description Mirrors `public.review_status`. Moderation reuses it; no new enum value is invented.
+         * @enum {string}
+         */
+        ReviewStatus: "ACTIVE" | "INACTIVE" | "MODERATED";
+        ReviewUpsert: {
+            /** @description Required on create; optional on edit. Bounded by the table CHECK. */
+            rating?: number;
+            /** @description Bounded at the edge, not in the database. */
+            comment?: string;
+        };
+        Review: {
+            /** Format: uuid */
+            coReview: string;
+            /**
+             * @description Present on the moderator listing only. A moderator may hold review.moderate
+             *     without place.update and cannot resolve a bare coPlace uuid.
+             */
+            place?: {
+                /** Format: uuid */
+                id: string;
+                title: string | null;
+            };
+            /**
+             * @description Viewer-relative highlight: true when the reader follows this review's author.
+             *     A property of the read, never of the row — the same review is highlighted for
+             *     one viewer and plain for another. False for anonymous readers, and never cached
+             *     under a key that lacks the viewer.
+             */
+            viaFollowedAuthor: boolean;
+            /** Format: uuid */
+            coPlace: string;
+            rating: number;
+            comment: string | null;
+            status: components["schemas"]["ReviewStatus"];
+            /** @description Display-safe author fields. The email is never exposed. */
+            author: {
+                /** Format: uuid */
+                id: string;
+                /** @description `seg.tb_user.tx_name`; `null` when the account never gave one (social sign-in). */
+                name: string | null;
+            };
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        ReviewPage: components["schemas"]["Page"] & {
+            data: components["schemas"]["Review"][];
         };
     };
     responses: {
@@ -1200,6 +1897,577 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
         };
     };
+    discoverPlaces: {
+        parameters: {
+            query?: {
+                /** @description `lat,long`. List mode locator. Closed bounds: latitude −90..90, longitude −180..180. */
+                near?: string;
+                /** @description Metres. List mode only. */
+                radius?: number;
+                /** @description `minLon,minLat,maxLon,maxLat`. Map mode locator. Must be strictly increasing and under the area cap. */
+                bbox?: string;
+                /** @description Map mode only, required with `bbox`. Selects the cluster resolution (0–4→3, 5–7→5, 8–10→6, 11–13→7, 14–16→8, 17–21→9). */
+                zoom?: number;
+                /** @description ISO 3166-1 alpha-2 filter, both modes. */
+                country?: string;
+                /** @description ISO 3166-2 filter, both modes. */
+                region?: string;
+                /** @description Place category UUID filter, both modes. */
+                category?: string;
+                /** @description Commercial-name search, both modes. Accent-insensitive, no stemming. Rejected `422`/`q`/`too_short` under 2 characters, `too_long` over 80. */
+                q?: string;
+                /** @description Menu-item search returning the places that carry a matching dish, both modes. Same bounds as `q`. */
+                dish?: string;
+                /** @description Comma-separated attribute codes, conjunctive (a place must carry ALL of them). Unknown codes are rejected `422`/`attributes`/`unknown`. */
+                attributes?: string;
+                /** @description USD ceiling. Matches places with at least one active USD-priced item on an active menu at or under the amount. Items in other currencies never match. Negative or non-numeric is `422`/`maxPrice`/`invalid`. */
+                maxPrice?: number;
+                /** @description ISO-8601 instant. Keeps places open at that instant in the place's own timezone, honouring schedules that close after midnight. Not an instant is `422`/`openAt`/`invalid`. */
+                openAt?: string;
+                /** @description List mode only. */
+                sort?: "distance" | "trending" | "rating";
+                page?: components["parameters"]["Page"];
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List page (list mode) or cluster map (map mode), discriminated by `mode`. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlaceListPage"] | components["schemas"]["ClusterMap"];
+                };
+            };
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    listPlaceReviews: {
+        parameters: {
+            query?: {
+                page?: components["parameters"]["Page"];
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: never;
+            path: {
+                coPlace: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Page of reviews. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewPage"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    createReview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                coPlace: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReviewUpsert"];
+            };
+        };
+        responses: {
+            /** @description Review created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Review"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            /** @description The caller already has an active (non-deleted) review for this place. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "review_already_exists",
+                     *         "message": "You already have a review for this place."
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    deleteReview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                coPlace: string;
+                coReview: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Review logically deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateReview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                coPlace: string;
+                coReview: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReviewUpsert"];
+            };
+        };
+        responses: {
+            /** @description Updated review. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Review"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    listPlaceCategories: {
+        parameters: {
+            query?: {
+                status?: "ACTIVE" | "INACTIVE";
+                page?: components["parameters"]["Page"];
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Page of categories. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        page: number;
+                        limit: number;
+                        total: number;
+                        data: components["schemas"]["PlaceCategory"][];
+                    };
+                };
+            };
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    listPlans: {
+        parameters: {
+            query?: {
+                page?: components["parameters"]["Page"];
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Page of plans, newest first. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        page: number;
+                        limit: number;
+                        total: number;
+                        data: components["schemas"]["Plan"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    createPlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlanWrite"];
+            };
+        };
+        responses: {
+            /** @description Created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Plan"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    getPlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                coRoute: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The plan. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Plan"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updatePlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                coRoute: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlanWrite"];
+            };
+        };
+        responses: {
+            /** @description Updated. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Plan"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    joinPlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                coRoute: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Member (already or newly). */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    leavePlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                coRoute: string;
+                coUser: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No longer a member. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listAdminPlaces: {
+        parameters: {
+            query?: {
+                /** @description Case-insensitive substring of the commercial title. */
+                q?: string;
+                status?: "ACTIVE" | "INACTIVE" | "DELETED";
+                categoryId?: string;
+                country?: string;
+                region?: string;
+                page?: components["parameters"]["Page"];
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Page of places, newest first. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page"] & {
+                        data?: components["schemas"]["AdminPlace"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    createAdminPlace: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminPlaceWrite"];
+            };
+        };
+        responses: {
+            /** @description Created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminPlace"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    getAdminPlace: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                coPlace: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The place. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminPlace"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    retireAdminPlace: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                coPlace: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Retired. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateAdminPlace: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                coPlace: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminPlaceWrite"];
+            };
+        };
+        responses: {
+            /** @description Updated. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminPlace"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    listAdminReviews: {
+        parameters: {
+            query?: {
+                status?: "ACTIVE" | "INACTIVE" | "MODERATED";
+                placeId?: string;
+                authorId?: string;
+                page?: components["parameters"]["Page"];
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Page of reviews, newest first. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page"] & {
+                        data?: components["schemas"]["Review"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    moderateReview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                coReview: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    status: components["schemas"]["ReviewStatus"];
+                };
+            };
+        };
+        responses: {
+            /** @description Moderated review. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Review"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationError"];
+        };
+    };
     listUsers: {
         parameters: {
             query?: {
@@ -1437,6 +2705,155 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+        };
+    };
+    listFollows: {
+        parameters: {
+            query?: {
+                direction?: "following" | "followers";
+                page?: components["parameters"]["Page"];
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Page of accounts. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        direction: string;
+                        page: number;
+                        limit: number;
+                        total: number;
+                        data: components["schemas"]["GraphMember"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    followUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    coUser: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Following */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    unfollowUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                coUser: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Not following */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    checkIn: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                coPlace: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description `lat,long`. Validated at the edge, used to decide proximity, never stored. */
+                    near: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Check-in recorded. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Checkin"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            /** @description Already checked in today. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "already_checked_in",
+                     *         "message": "You already checked in to this place today."
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Validation failure, or the coordinate is outside the place radius. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "not_near_place",
+                     *         "message": "You are not within the radius of this place."
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
         };
     };
 }

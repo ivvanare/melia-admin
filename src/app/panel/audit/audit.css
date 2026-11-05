@@ -1,3 +1,19 @@
 :host {
   display: block;
 }
+
+/* The range needs two controls under one label, which the shared `.field` does not cover. */
+.toolbar .field.range {
+  flex: 1 1 100%;
+  max-width: none;
+}
+
+.toolbar .pair {
+  display: flex;
+  gap: 8px;
+}
+
+.toolbar .pair input {
+  flex: 1;
+  min-width: 0;
+}

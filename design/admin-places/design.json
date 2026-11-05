@@ -1,0 +1,28 @@
+{
+  "title": "Places — administración de locales",
+  "brief": "Pantalla de Places del panel de melZone con dos sesiones en el mismo artboard: el dueño de un local edita la ficha de lo suyo (descripción, horarios, fotos) sin poder crear, eliminar ni reasignar, y el superadmin de la plataforma ve todos los locales, con su dueño a la vista y la opción de reasignarlo.",
+  "feature": "odd/tasks/place-ownership.md",
+  "artboards": [
+    {
+      "file": "01-list-and-drawer.html",
+      "title": "Tabla densa y panel lateral",
+      "tradeoff": "La lista manda y el editor aparece al costado sin tapar la tabla: se edita sin perder el contexto de los demás locales. El formulario compite por ancho, así que horarios y fotos terminan en pestañas o en un segundo paso.",
+      "width": 1440,
+      "height": 1200
+    },
+    {
+      "file": "02-master-detail.html",
+      "title": "Maestro y detalle",
+      "tradeoff": "Lista angosta y ficha larga al lado: descripción, horarios, fotos y menús entran sin scroll lateral. Se ven menos locales a la vez y en 1280 el maestro se aprieta.",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "03-card-grid-dialog.html",
+      "title": "Grilla de tarjetas y diálogo",
+      "tradeoff": "El local se reconoce por su foto, como en el catálogo de la app, y editar abre un diálogo de dos columnas — el mismo idioma que Users y Roles con ng-zorro. La densidad cae a 6 por pantalla y operar en lote se vuelve incómodo.",
+      "width": 1440,
+      "height": 900
+    }
+  ]
+}

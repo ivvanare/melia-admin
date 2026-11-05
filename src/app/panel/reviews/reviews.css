@@ -1,0 +1,40 @@
+:host {
+  display: block;
+}
+
+/* The status control lives inside a table row, so it is sized like a cell control, not
+   like a toolbar field. */
+.inline-status {
+  display: inline-flex;
+}
+
+.status-select {
+  font: inherit;
+  font-size: 12px;
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-muted);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.status-select:focus-visible {
+  border-color: var(--accent);
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.status-select:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.mono {
+  font-family: var(--font-mono);
+}
+
+.moderation-note {
+  margin-top: 14px;
+  max-width: 78ch;
+}

@@ -95,6 +95,9 @@
               <h3>{{ module.label }}</h3>
               @if (module.status === 'soon') {
                 <span class="badge">Coming soon</span>
+              } @else if (module.status === 'mock') {
+                <!-- The screen works, the backend does not exist yet: saying so is the point. -->
+                <span class="badge">Mock data</span>
               }
             </span>
             <p>{{ module.description }}</p>

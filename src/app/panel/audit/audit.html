@@ -1,8 +1,91 @@
 <section class="screen">
-  <crud-list-screen
-    [config]="config"
-    [controller]="crud"
-    title="Audit log"
-    [subtitle]="subtitle()"
+  <div class="pagehead">
+    <div>
+      <h1>Audit log</h1>
+      <p>{{ subtitle() }}</p>
+    </div>
+    <button class="btn secondary" type="button" [disabled]="loading()" (click)="load()">
+      {{ loading() ? 'Refreshing…' : 'Refresh' }}
+    </button>
+  </div>
+
+  @if (errorCode(); as code) {
+    <div class="alert" role="alert">
+      <span>Could not load the log: <code>{{ code }}</code></span>
+      <button class="btn secondary" type="button" (click)="load()">Try again</button>
+    </div>
+  }
+
+  <!-- The log has no search endpoint: these are named filters, not a query box. -->
+  <div class="toolbar">
+    <label class="field">
+      Event
+      <input
+        type="text"
+        placeholder="auth.login.failed"
+        [value]="eventFilter()"
+        (input)="eventFilter.set($any($event.target).value); apply()"
+      />
+    </label>
+
+    <label class="field">
+      User
+      <input
+        type="text"
+        placeholder="user id"
+        [value]="userFilter()"
+        (input)="userFilter.set($any($event.target).value); apply()"
+      />
+    </label>
+
+    <label class="field">
+      Email hash
+      <input
+        type="text"
+        placeholder="HMAC-SHA256"
+        [value]="emailHashFilter()"
+        (input)="emailHashFilter.set($any($event.target).value); apply()"
+      />
+    </label>
+
+    <div class="field range">
+      <span>When</span>
+      <div class="pair">
+        <input
+          type="datetime-local"
+          aria-label="From"
+          [value]="fromFilter()"
+          (input)="fromFilter.set($any($event.target).value); apply()"
+        />
+        <input
+          type="datetime-local"
+          aria-label="To"
+          [value]="toFilter()"
+          (input)="toFilter.set($any($event.target).value); apply()"
+        />
+      </div>
+    </div>
+  </div>
+
+  <app-data-table
+    caption="Audit events, newest first"
+    [rows]="rows()"
+    [columns]="columns"
+    [empty]="emptyLabel()"
   />
+
+  <div class="pager">
+    <span>{{ rangeLabel() }}</span>
+    <button class="btn secondary" type="button" [disabled]="page() === 1" (click)="previous()">
+      Previous
+    </button>
+    <button
+      class="btn secondary"
+      type="button"
+      [disabled]="page() >= pageCount()"
+      (click)="next()"
+    >
+      Next
+    </button>
+  </div>
 </section>

@@ -92,7 +92,7 @@
 
 .pitch em {
   font-style: normal;
-  color: #8b87f8;
+  color: var(--accent-ink);
 }
 
 .lead {
@@ -253,7 +253,7 @@ button.primary {
   margin-top: 4px;
   border: 0;
   border-radius: 11px;
-  background: var(--accent);
+  background: var(--accent-strong);
   color: var(--on-accent);
   font-weight: 650;
   font-size: 14.5px;
@@ -296,7 +296,7 @@ button.primary:disabled {
 .linkish {
   border: 0;
   background: transparent;
-  color: var(--accent);
+  color: var(--accent-ink);
   font: inherit;
   font-size: 13px;
   font-weight: 650;
@@ -324,7 +324,7 @@ button.primary:disabled {
 }
 
 .notice h2 svg {
-  color: var(--accent);
+  color: var(--accent-ink);
   flex: none;
 }
 

@@ -40,7 +40,7 @@ h1 {
 }
 
 .plan li::marker {
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 
 .note {

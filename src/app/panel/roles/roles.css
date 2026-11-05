@@ -77,10 +77,5 @@ code {
   color: var(--muted);
 }
 
-/* ---------- catalogue ---------- */
-.module {
-  font-weight: 650;
-  color: var(--slate);
-  white-space: nowrap;
-  vertical-align: top;
-}
+/* The catalogue now renders through app-data-table, so its own table styles are gone;
+   the section heading is the only thing this screen still draws for it. */

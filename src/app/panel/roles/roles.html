@@ -46,39 +46,11 @@
   }
 
   <h2 class="section-title">Permission catalogue</h2>
-  <div class="table-wrap">
-    <table class="panel-table">
-      <caption class="sr-only">Permission catalogue grouped by module</caption>
-      <thead>
-        <tr>
-          <th scope="col">Module</th>
-          <th scope="col">Code</th>
-          <th scope="col">Name</th>
-          <th scope="col">Status</th>
-        </tr>
-      </thead>
-      <tbody>
-        @if (loading()) {
-          <tr><td colspan="4" class="empty">Loading permissions…</td></tr>
-        } @else if (!grouped().length) {
-          <tr><td colspan="4" class="empty">The catalogue is empty.</td></tr>
-        } @else {
-          @for (group of grouped(); track group.module) {
-            @for (permission of group.items; track permission.id; let first = $first) {
-              <tr>
-                <td class="module">{{ first ? group.module : '' }}</td>
-                <td class="mono">{{ permission.code }}</td>
-                <td>{{ permission.name }}</td>
-                <td>
-                  <span class="tag" [class.ok]="permission.status === 'ACTIVE'" [class.warn]="permission.status !== 'ACTIVE'">
-                    {{ permission.status }}
-                  </span>
-                </td>
-              </tr>
-            }
-          }
-        }
-      </tbody>
-    </table>
-  </div>
+  <app-data-table
+    caption="Permission catalogue grouped by module"
+    [rows]="catalogueRows()"
+    [columns]="catalogueColumns"
+    [empty]="emptyCatalogue()"
+  />
+
 </section>

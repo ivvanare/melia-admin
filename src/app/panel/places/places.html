@@ -1,0 +1,382 @@
+<section class="screen">
+  <!-- Declared before the table so the actions input sees the reference. -->
+  <ng-template #rowActions let-row>
+    <button nz-button nzSize="small" type="button" (click)="openEditor(row)">Edit record</button>
+  </ng-template>
+
+  <div class="pagehead">
+    <div>
+      <h1>Places</h1>
+      <p>{{ subtitle() }}</p>
+    </div>
+    <div class="head-actions">
+      <div class="viewtoggle" role="group" aria-label="How the places are shown">
+        <button type="button" [class.on]="view() === 'cards'" (click)="setView('cards')">Cards</button>
+        <button type="button" [class.on]="view() === 'table'" (click)="setView('table')">Table</button>
+      </div>
+      @if (canManageAll()) {
+        <button class="btn primary" type="button" (click)="openCreate()">New place</button>
+      }
+    </div>
+  </div>
+
+  @if (listErrorCode(); as code) {
+    <div class="alert" role="alert">
+      <span>Could not load the places: <code>{{ code }}</code></span>
+      <button class="btn secondary" type="button" (click)="load()">Try again</button>
+    </div>
+  }
+
+  <div class="toolbar">
+    <label class="field">
+      Search
+      <input
+        id="places-search"
+        type="search"
+        placeholder="Title, name or address"
+        [value]="search()"
+        (input)="search.set($any($event.target).value); apply()"
+      />
+    </label>
+
+    <label class="field narrow">
+      Listing
+      <select
+        id="places-status"
+        [value]="statusFilter()"
+        (change)="statusFilter.set($any($event.target).value); apply()"
+      >
+        @for (option of listStatuses; track option.value) {
+          <option [value]="option.value">{{ option.label }}</option>
+        }
+      </select>
+    </label>
+
+    <label class="field narrow">
+      Country
+      <input
+        id="places-country"
+        type="text"
+        placeholder="VE"
+        maxlength="2"
+        [value]="countryFilter()"
+        (input)="countryFilter.set($any($event.target).value); apply()"
+      />
+    </label>
+
+    <label class="field narrow">
+      Region
+      <input
+        id="places-region"
+        type="text"
+        placeholder="Distrito Capital"
+        [value]="regionFilter()"
+        (input)="regionFilter.set($any($event.target).value); apply()"
+      />
+    </label>
+  </div>
+
+  @if (view() === 'cards') {
+    @if (rows().length === 0) {
+      <p class="empty-state">{{ emptyLabel() }}</p>
+    } @else {
+      <div class="grid">
+        @for (place of rows(); track place.coPlace) {
+          <article class="place">
+            <div class="photo" [attr.data-category]="place.category.name">
+              <span [class]="place.status === 'ACTIVE' ? 'tag ok' : 'tag warn'">
+                {{ place.status }}
+              </span>
+              @if (canManageAll()) {
+                <span class="tag ondark">{{ ownerLabel(place) }}</span>
+              }
+              <span class="cover">{{ place.category.name }}</span>
+            </div>
+
+            <div class="body">
+              <h2>{{ place.title }}</h2>
+              <p class="sub">{{ place.category.name }}@if (place.address) { · {{ place.address }} }</p>
+
+              @if (place.description) {
+                <p class="desc">{{ place.description }}</p>
+              } @else {
+                <p class="desc missing">No description yet: the app shows an empty record.</p>
+              }
+
+              @if (canManageAll()) {
+                <p class="owner">{{ ownerLabel(place) }}</p>
+              }
+            </div>
+
+            <footer>
+              <span class="when">{{ updatedLabel(place) }}</span>
+              <button class="btn ghost" type="button" (click)="openEditor(place)">Edit record</button>
+            </footer>
+          </article>
+        }
+      </div>
+    }
+  } @else {
+    <app-data-table
+      caption="Places with their category, status and owner"
+      [rows]="rows()"
+      [columns]="columns()"
+      [empty]="emptyLabel()"
+      [rowActions]="rowActions"
+    />
+  }
+
+  <div class="pager">
+    <span>{{ rangeLabel() }}</span>
+    <button class="btn secondary" type="button" [disabled]="page() === 1" (click)="previous()">
+      Previous
+    </button>
+    <button class="btn secondary" type="button" [disabled]="page() >= pageCount()" (click)="next()">
+      Next
+    </button>
+  </div>
+
+  <nz-modal
+    [nzVisible]="editorOpen()"
+    [nzTitle]="editing()?.title ?? 'New place'"
+    nzOkText="Save changes"
+    nzCancelText="Cancel"
+    [nzOkLoading]="saving()"
+    nzWidth="920px"
+    (nzOnCancel)="closeEditor()"
+    (nzOnOk)="save()"
+  >
+    <ng-container *nzModalContent>
+      <app-dialog-shell
+        [lead]="editing() ? (editing()?.coPlace ?? '') : 'A new place in the catalogue.'"
+        [errors]="errors()"
+      >
+        <div slot="left" class="col">
+          <fieldset>
+            <legend>Identity</legend>
+
+            <div class="field">
+              <label for="place-name">Real / legal name</label>
+              <input
+                id="place-name"
+                class="dialog-input"
+                type="text"
+                [value]="draft().name"
+                [disabled]="saving()"
+                (input)="patch('name', $any($event.target).value)"
+              />
+            </div>
+
+            <div class="field">
+              <label for="place-title">Commercial title</label>
+              <input
+                id="place-title"
+                class="dialog-input"
+                type="text"
+                [value]="draft().title"
+                [disabled]="saving()"
+                (input)="patch('title', $any($event.target).value)"
+              />
+              <p class="hint">The name the app's user reads.</p>
+            </div>
+
+            <div class="field">
+              <label for="place-desc">Public description</label>
+              <textarea
+                id="place-desc"
+                class="dialog-input"
+                rows="4"
+                [value]="draft().description"
+                [disabled]="saving()"
+                (input)="patch('description', $any($event.target).value)"
+              ></textarea>
+              <p class="hint">{{ draft().description.length }} / 2000 characters.</p>
+            </div>
+
+            <div class="field">
+              <label for="place-category">Category</label>
+              <select
+                id="place-category"
+                class="dialog-input"
+                [value]="draft().categoryId"
+                [disabled]="saving() || categories().length === 0"
+                (change)="patch('categoryId', $any($event.target).value)"
+              >
+                @if (draft().categoryId === '') {
+                  <option value="">Pick a category</option>
+                }
+                @for (option of categoryOptions(); track option.id) {
+                  <option [value]="option.id">{{ option.label }}</option>
+                }
+              </select>
+              <p class="hint">
+                The active taxonomy. The stable key is the code; the id is what the place stores.
+              </p>
+            </div>
+          </fieldset>
+        </div>
+
+        <div slot="right" class="col">
+          <fieldset>
+            <legend>Location</legend>
+
+            <div class="field">
+              <label for="place-addr">Address</label>
+              <input
+                id="place-addr"
+                class="dialog-input"
+                type="text"
+                [value]="draft().address"
+                [disabled]="saving()"
+                (input)="patch('address', $any($event.target).value)"
+              />
+            </div>
+
+            <div class="row">
+              <div class="field">
+                <label for="place-lat">Latitude</label>
+                <input
+                  id="place-lat"
+                  class="dialog-input mono"
+                  type="text"
+                  [value]="draft().latitude"
+                  [disabled]="saving()"
+                  (input)="patch('latitude', $any($event.target).value)"
+                />
+              </div>
+              <div class="field">
+                <label for="place-lng">Longitude</label>
+                <input
+                  id="place-lng"
+                  class="dialog-input mono"
+                  type="text"
+                  [value]="draft().longitude"
+                  [disabled]="saving()"
+                  (input)="patch('longitude', $any($event.target).value)"
+                />
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="field">
+                <label for="place-country">Country</label>
+                <input
+                  id="place-country"
+                  class="dialog-input mono"
+                  type="text"
+                  maxlength="2"
+                  [value]="draft().country"
+                  [disabled]="saving()"
+                  (input)="patch('country', $any($event.target).value)"
+                />
+              </div>
+              <div class="field">
+                <label for="place-region">Region</label>
+                <input
+                  id="place-region"
+                  class="dialog-input"
+                  type="text"
+                  [value]="draft().region"
+                  [disabled]="saving()"
+                  (input)="patch('region', $any($event.target).value)"
+                />
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="place-timezone">Timezone</label>
+              <input
+                id="place-timezone"
+                class="dialog-input mono"
+                type="text"
+                [value]="draft().timezone"
+                [disabled]="saving()"
+                (input)="patch('timezone', $any($event.target).value)"
+              />
+            </div>
+          </fieldset>
+
+          @if (canManageAll()) {
+            <fieldset>
+              <legend>Catalogue · platform only</legend>
+
+              <div class="field">
+                <label for="place-status">Status</label>
+                <select
+                  id="place-status"
+                  class="dialog-input"
+                  [value]="draft().status"
+                  [disabled]="saving()"
+                  (change)="patch('status', $any($event.target).value)"
+                >
+                  <option value="ACTIVE">ACTIVE</option>
+                  <option value="INACTIVE">INACTIVE</option>
+                  <option value="SUSPENDED">SUSPENDED</option>
+                </select>
+              </div>
+
+              <div class="field">
+                <label for="place-owner">Owner</label>
+                <input
+                  id="place-owner"
+                  class="dialog-input mono"
+                  type="text"
+                  placeholder="user id, empty for the platform"
+                  [value]="draft().ownerId"
+                  [disabled]="saving()"
+                  (input)="patch('ownerId', $any($event.target).value)"
+                />
+                <p class="hint">
+                  Reassignment is honoured only for a session that manages the catalogue, and it is
+                  written to the audit log.
+                </p>
+              </div>
+            </fieldset>
+          } @else {
+            <fieldset>
+              <legend>What this session cannot do</legend>
+              <p class="hint">
+                Creating places, retiring them and reassigning their owner belong to the platform.
+                You edit the records the server returns for you.
+              </p>
+            </fieldset>
+          }
+
+          @if (saveErrorCode(); as code) {
+            <p class="save-error" role="alert">{{ saveErrorMessage(code) }}</p>
+          }
+
+          @if (editing() && canDelete()) {
+            <button class="btn danger" type="button" (click)="askDelete(editing()!)">
+              Delete place
+            </button>
+          }
+        </div>
+      </app-dialog-shell>
+    </ng-container>
+  </nz-modal>
+
+  <nz-modal
+    [nzVisible]="deleteTarget() !== null"
+    nzTitle="Retire this place?"
+    nzOkText="Retire place"
+    nzCancelText="Keep it"
+    [nzOkLoading]="deleting()"
+    nzWidth="460px"
+    (nzOnCancel)="cancelDelete()"
+    (nzOnOk)="confirmDelete()"
+  >
+    <ng-container *nzModalContent>
+      <app-dialog-shell [errorCode]="deleteErrorCode()">
+        <span slot="error-message">The place was not retired: </span>
+        <div slot="left" class="col">
+          <p class="hint">
+            Retiring is a logical delete: the record stays here, and the place disappears from
+            discovery, reviews and check-ins. It does not delete the venue's history.
+          </p>
+        </div>
+        <div slot="right" class="col"></div>
+      </app-dialog-shell>
+    </ng-container>
+  </nz-modal>
+</section>

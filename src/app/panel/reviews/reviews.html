@@ -1,0 +1,99 @@
+<section class="screen">
+  <!-- Declared before the table so the actions input sees the reference. -->
+  <ng-template #rowActions let-row>
+    <label class="inline-status">
+      <span class="sr-only">Status for the review by {{ row.author.name ?? row.author.id }}</span>
+      <select
+        class="status-select"
+        [value]="row.status"
+        [disabled]="savingId() !== null"
+        (change)="changeStatus(row, $any($event.target).value, $any($event.target))"
+      >
+        @for (status of statuses; track status) {
+          <option [value]="status">{{ status }}</option>
+        }
+      </select>
+    </label>
+  </ng-template>
+
+  <div class="pagehead">
+    <div>
+      <h1>Reviews</h1>
+      <p>{{ subtitle() }}</p>
+    </div>
+    <button class="btn secondary" type="button" [disabled]="loading()" (click)="load()">
+      {{ loading() ? 'Refreshing…' : 'Refresh' }}
+    </button>
+  </div>
+
+  @if (errorCode(); as code) {
+    <div class="alert" role="alert">
+      <span>The change was rejected: <code>{{ code }}</code></span>
+      <button class="btn secondary" type="button" (click)="load()">Reload</button>
+    </div>
+  }
+
+  <!-- Named filters, not a search: the API takes a status enum and two UUIDs. -->
+  <div class="toolbar">
+    <label class="field narrow">
+      Status
+      <select
+        id="reviews-status"
+        [value]="statusFilter()"
+        (change)="statusFilter.set($any($event.target).value); apply()"
+      >
+        <option value="">Any status</option>
+        @for (status of statuses; track status) {
+          <option [value]="status">{{ status }}</option>
+        }
+      </select>
+    </label>
+
+    <label class="field">
+      Place id
+      <input
+        id="reviews-place"
+        class="mono"
+        type="text"
+        placeholder="coPlace (uuid)"
+        [value]="placeFilter()"
+        (input)="placeFilter.set($any($event.target).value); apply()"
+      />
+    </label>
+
+    <label class="field">
+      Author id
+      <input
+        id="reviews-author"
+        class="mono"
+        type="text"
+        placeholder="author (uuid)"
+        [value]="authorFilter()"
+        (input)="authorFilter.set($any($event.target).value); apply()"
+      />
+    </label>
+  </div>
+
+  <app-data-table
+    caption="Reviews with their author, rating and moderation status"
+    [rows]="rows()"
+    [columns]="columns"
+    [empty]="emptyLabel()"
+    [rowActions]="rowActions"
+  />
+
+  <div class="pager">
+    <span>{{ rangeLabel() }}</span>
+    <button class="btn secondary" type="button" [disabled]="page() === 1" (click)="previous()">
+      Previous
+    </button>
+    <button class="btn secondary" type="button" [disabled]="page() >= pageCount()" (click)="next()">
+      Next
+    </button>
+  </div>
+
+  <p class="hint moderation-note">
+    Moderating changes the status only: the review is not deleted and its author may review that
+    place again. This listing also shows rows the public one hides.
+  </p>
+</section>
