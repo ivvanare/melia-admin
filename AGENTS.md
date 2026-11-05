@@ -107,13 +107,13 @@ Rules that matter here:
 
 ## Discovery endpoints (in `melia`, not in `contract/` yet)
 
-`GET /v1/places` (list and map modes), the review routes and `PATCH /v1/admin/reviews/{coReview}`
-exist on `feat/api-place-discovery` in the sibling, **not pushed**. Until a remote SHA exists:
-
-- Do **not** run `scripts/sync-contract.sh`. The `contract` CI job fetches the declared commit from the
-  API's repository, so pinning an unpushed one turns the job red for a reason that means nothing.
-  Develop against `../melia/api/openapi.yaml` and `../melia/api/API.md`, and commit the snapshot in one
-  move when the SHA is remote.
+The discovery and social routes are in `contract/`, pinned to a pushed commit of
+`feat/api-social-graph` (`0b4a358`): `GET /v1/places` (list and map), the review routes,
+`PATCH /v1/admin/reviews/{coReview}`, `/v1/follows` and the check-in route. The rule that matters when
+the API moves again: run `scripts/sync-contract.sh <commit>` only when that commit is **remote**, because
+the `contract` CI job fetches it from the API's repository; pinning an unpushed one turns the job red for
+a reason that means nothing. The script refuses a checkout that is not at that commit, so do not switch
+the API session's HEAD to satisfy it — a temporary worktree does the job.
 
 Facts that each cost a bug already:
 
@@ -137,8 +137,12 @@ Facts that each cost a bug already:
   destructive actions, and the status is a label rather than a permanent punishment. Preventing
   someone from publishing again is an account-level write block, a different feature. A second `ACTIVE`
   review still answers `409 review_already_exists`.
-- **`GET /v1/admin/reviews` does not exist yet.** Moderation needs it to discover a `coReview`; it is
-  planned with `status|placeId|authorId` filters. Do not build the screen before it lands.
+- **`GET /v1/admin/reviews` does not exist yet.** Moderation needs it to discover a `coReview`; the API
+  session is writing it now with `status|placeId|authorId` filters. Do not build the screen before it
+  lands.
+- **`viaFollowedAuthor` is per-viewer.** A review row carries it as `true` when the reader follows the
+  author; an anonymous request gets `false`. Never cache it across users or use it as a cache key —
+  it describes the session, not the row.
 - **A running container may serve an older image than the code you read.** If a new filter returns `200`
   with exactly the result it should have changed, suspect the deployed commit before the contract.
 

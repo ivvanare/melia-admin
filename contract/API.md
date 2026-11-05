@@ -415,6 +415,9 @@ El panel es un SPA en otro origen, así que cada llamada es cross-origin y el he
 | `rate_limited` | 429 | cuota de pedidos de código; trae `Retry-After` |
 | `invalid_password` | 400 | la contraseña actual no coincide |
 | `email_unavailable` | 409 | la dirección ya está en uso |
+| `review_already_exists` | 409 | ya tenés una reseña activa en ese lugar |
+| `not_near_place` | 422 | la coordenada enviada está fuera del radio del lugar |
+| `already_checked_in` | 409 | ya hiciste check-in en ese lugar hoy |
 | `refresh_invalid` | 401 | refresh desconocido o vencido |
 | `refresh_reused` | 401 | reuso detectado; la familia está revocada |
 | `invalid_token` | 401 | el ID token del proveedor no valida |
@@ -433,15 +436,232 @@ vocabulario de `code` es cerrado:
 |---|---|
 | `required` | falta un campo obligatorio |
 | `invalid` | el formato no sirve (email, código de 6 dígitos, fecha, provider) |
-| `too_short` | no llega al mínimo (contraseña: 12 caracteres) |
-| `too_long` | excede el máximo |
+| `too_short` | no llega al mínimo (contraseña: 12 caracteres; `q`/`dish`: 2) |
+| `too_long` | excede el máximo (`q`/`dish`: 80 caracteres; `radius`/`bbox`: su tope) |
 | `unchanged` | el email nuevo es igual al actual |
-| `unknown` | el rol pedido no existe o está inactivo |
+| `unknown` | el rol o el atributo pedido no existe o está inactivo |
 | `not_configured` | el proveedor social no está habilitado en este servidor |
 
 ---
 
-## 11. Recetas
+## 11. Descubrimiento de lugares
+
+Lectura pública, **sin autenticación**. Una sola ruta con dos modos, decididos por el
+localizador:
+
+| Localizador | Modo | Parámetros propios |
+|---|---|---|
+| `near=lat,long` | **lista** | `radius` (metros, por defecto 2000, máximo 50000), `sort`, `page`, `limit` |
+| `bbox=minLon,minLat,maxLon,maxLat` | **mapa** | `zoom` (0–21, obligatorio con `bbox`) |
+
+`near` lleva latitud primero; `bbox` lleva longitud primero, como GeoJSON. Mandar ambos
+localizadores o ninguno → `422 validation_failed`: ninguno trae
+`{field: "locator", code: "required"}` y ambos traen `{field: "bbox", code: "invalid"}`.
+El cruce del antimeridiano está fuera de alcance y se rechaza (`bbox` inválido).
+
+Filtros en ambos modos: `country` (`^[A-Z]{2}$`), `region` (`^[A-Z]{2}-[A-Z0-9]{1,3}$`) y
+`category` (uuid). Un valor inválido → `422` con su `field`. Los parámetros ajenos al modo
+(`page` en modo mapa, `zoom` en modo lista) se ignoran. Búsqueda y filtros de la ficha del
+lugar (`q`, `dish`, `attributes`, `maxPrice`, `openAt`): ver §11.3.
+
+**La coordenada del pedido se evalúa y se descarta**: no se persiste, no se loguea y nunca
+es material de una clave de caché.
+
+### 11.1 Modo lista
+
+```http
+GET /v1/places?near=10.4806,-66.9036&radius=2000&sort=distance&page=1&limit=20
+```
+
+```json
+{
+  "mode": "list",
+  "page": 1, "limit": 20, "total": 42,
+  "sortApplied": "trending",
+  "degraded": false,
+  "data": [
+    {
+      "coPlace": "9f1c...", "name": "Arepera El Hatillo",
+      "category": { "id": "43c4...", "name": "Arepera" },
+      "country": "VE", "region": "VE-A",
+      "latitude": 10.480594, "longitude": -66.903606,
+      "address": "Calle 1", "distanceMeters": 940,
+      "rating": { "average": 4.6, "count": 128 }
+    }
+  ]
+}
+```
+
+- `name` es el nombre comercial (`tx_title`). El nombre legal (`tx_name`) y el dueño del
+  lugar **nunca** se exponen en esta lectura.
+- `distanceMeters` son metros enteros desde `near`; nunca se fabrica.
+- `rating` es `null` cuando el worker no publicó agregado para ese lugar; la ausencia no
+  es un error. Nunca se calcula agregando reseñas en el pedido.
+- `trendingRank` solo aparece con `sort=trending` y ranking de zona existente.
+
+`sort`: `distance` (por defecto, orden real por cercanía sobre el índice GiST), `rating`,
+`trending`. **`sortApplied` es el orden que efectivamente corrió**: si se pidió `trending`
+y la zona no tenía ranking publicado, la API cae a `rating` y responde `degraded: true` —
+así el cliente distingue un ranking frío de un lugar impopular, sin error.
+
+Un radio sin resultados es `200` con `data: []` y `total: 0`: no es un error.
+
+### 11.2 Modo mapa
+
+```http
+GET /v1/places?bbox=-66.99,10.41,-66.82,10.54&zoom=12
+```
+
+```json
+{
+  "mode": "map", "zoom": 12, "resolution": 7,
+  "total": 311, "truncated": false,
+  "clusters": [
+    {
+      "cell": "872830828ffffff", "resolution": 7, "count": 37,
+      "center": { "latitude": 10.48, "longitude": -66.9 },
+      "averageRating": 4.3
+    }
+  ]
+}
+```
+
+- `total` es la cantidad de lugares detrás de los clusters, no la cantidad de clusters.
+- Cada cluster es una **zona**: una celda H3 serializada como string hex (los números JSON
+  pierden precisión por encima de 2^53). Trae conteos y agregados neutros y **ningún
+  nombre administrativo**: no es un barrio, ni un distrito, ni un municipio.
+- `averageRating` es el promedio de los ratings publicados de la celda; es `null` cuando
+  se desconoce, nunca `0`.
+- `zoom` elige la resolución H3 según la tabla; la celda se deriva por aritmética de
+  padres, nunca hay una columna por nivel de zoom.
+
+| `zoom` | resolución H3 |
+|---|---|
+| 0–4 | 3 |
+| 5–7 | 5 |
+| 8–10 | 6 |
+| 11–13 | 7 |
+| 14–16 | 8 |
+| 17–21 | 9 |
+
+La consulta del viewport está topeada a **5000 filas**. Un bbox que supera el tope de área
+(100 000 km²) se rechaza **antes de consultar** con `422` (`field: bbox`, `code:
+too_long`), pidiendo acercar — truncar en silencio haría mentirosos los conteos. Si el
+tope se alcanza igualmente, `truncated: true` y los conteos describen la muestra, no el
+total.
+
+### 11.3 Búsqueda y filtros
+
+Cinco parámetros más, válidos en los dos modos y combinables entre sí y con el
+localizador:
+
+- **`q` — ¿cómo se llama?** Busca en el nombre comercial del lugar, sin importar
+  mayúsculas ni acentos: `terraza`, `Térraza` y `TERRAZA` son la misma consulta. Sin
+  stemming: `terrazas` **no** matchea `terraza`. Entre 2 y 80 caracteres
+  (`{field: "q", code: "too_short"}` / `too_long`).
+- **`dish` — ¿quién sirve este plato?** Busca en nombres y descripciones de ítems de
+  menú (activos, de menús activos) y devuelve los **lugares** que lo tienen. Misma cota
+  de 2 a 80 caracteres. Son dos preguntas distintas con índices distintos: una sola caja
+  haría que «arepa» devuelva un lugar llamado Arepa's y pierda el restaurante que las
+  sirve.
+- **`attributes` — conjuntivo.** `attributes=terraza,petfriendly` exige **ambos**. Un
+  código que no está en el catálogo gobernado → `422` `{field: "attributes", code:
+  "unknown"}`. Vocabulario vigente: `terraza`, `petfriendly`, `frente_playa`,
+  `aire_libre`, `musica_en_vivo`.
+- **`maxPrice` — siempre USD.** Matchea lugares con al menos un ítem activo, de un menú
+  activo, cuya moneda sea USD y cuyo precio no supere el monto. Un ítem en otra moneda
+  **no** matchea: es comportamiento documentado, no un defecto, y no existe parámetro
+  `currency`. Negativo o no numérico → `{field: "maxPrice", code: "invalid"}`.
+- **`openAt` — pregunta de horario, no de atributo.** Instantáneo ISO-8601
+  (`2026-11-08T03:30:00Z`); se evalúa en la zona horaria **del lugar** e incluye los
+  horarios que cruzan la medianoche: un local que abre 20:00 y cierra 02:00 figura
+  abierto a las 23:00. Si no es un instante válido → `{field: "openAt", code:
+  "invalid"}`.
+
+Una búsqueda sin resultados es `200` con la página vacía, nunca `404`.
+
+---
+
+## 12. Reseñas
+
+Las reseñas son la primera escritura de dominio de la API. **Una por usuario y lugar**: lo
+garantiza el índice único parcial `ux_tb_review_user_place_active`, nunca una consulta
+previa (chequear antes de insertar tiene carrera).
+
+| Método | Ruta | Autenticación | Qué hace |
+|---|---|---|---|
+| `GET` | `/v1/places/{coPlace}/reviews?page&limit` | pública | lista paginada, la más reciente primero |
+| `POST` | `/v1/places/{coPlace}/reviews` | bearer | crea tu reseña (`201`) |
+| `PATCH` | `/v1/places/{coPlace}/reviews/{coReview}` | bearer, solo el autor | edita `rating` y/o `comment` |
+| `DELETE` | `/v1/places/{coPlace}/reviews/{coReview}` | bearer, solo el autor | borrado **lógico** (`204`) |
+| `PATCH` | `/v1/admin/reviews/{coReview}` | bearer + `review.moderate` | fija `status` (`ACTIVE`/`INACTIVE`/`MODERATED`) |
+
+Un lugar borrado lógico o `INACTIVE` responde `404` en **todas** estas rutas, igual que un
+lugar inexistente: no se pueden enumerar lugares retirados por diferencias de error.
+
+### Crear
+
+```http
+POST /v1/places/9f1c.../reviews
+Authorization: Bearer <access>
+{"rating": 5, "comment": "La mejor arepa de Chacao."}
+```
+
+→ `201` con la reseña. `rating` es entero de 1 a 5 (el CHECK de la tabla) y `comment`
+tiene tope de 2000 caracteres, validado en el borde (`422`, `field: comment`, `code:
+too_long`), no en la base.
+
+Si ya tenés una reseña activa (no borrada) en ese lugar → `409 review_already_exists`.
+Es la traducción del índice único parcial, nunca un chequeo previo ni un 500.
+
+### Visibilidad
+
+Todos ven las reseñas `ACTIVE` no borradas. Una reseña `INACTIVE`, `MODERATED` o borrada
+lógicamente solo la ven **su autora** y quienes tienen `review.moderate` — la lista es
+pública, pero si mandás el bearer la API sabe quién sos y te muestra también las tuyas. El
+email del autor nunca se expone: `author` trae solo `id` y `name`.
+
+### Editar y borrar (solo el autor)
+
+```http
+PATCH /v1/places/9f1c.../reviews/7a2b...
+Authorization: Bearer <access>
+{"rating": 4}
+```
+
+→ `200` con la reseña actualizada. Al menos un campo es obligatorio (`rating` o
+`comment`). Cualquier otro usuario → `403 permission_denied`. Editar no cambia `status`.
+
+```http
+DELETE /v1/places/9f1c.../reviews/7a2b...
+Authorization: Bearer <access>
+```
+
+→ `204`. El borrado es **lógico** (`dt_deleted_at`), así que podés reseñar ese lugar de
+nuevo después — por eso el índice único es parcial.
+
+### Moderación
+
+```http
+PATCH /v1/admin/reviews/7a2b...
+Authorization: Bearer <access>
+{"status": "MODERATED"}
+```
+
+Requiere el permiso `review.moderate` (ya sembrado); sin él → `403 permission_denied`.
+Solo usa valores del enum `review_status` existente: no hay permisos ni estados nuevos.
+Una reseña `MODERATED` deja de verse para todos salvo su autora y los moderadores.
+
+### Historia
+
+Cada escritura anuncia al actor con `set_config('app.current_user_id', ...)` al abrir su
+transacción, así el trigger existente registra `co_actor_user` en
+`core.tb_review_history`. El servicio **nunca** inserta en la tabla de historia: la
+escribe el trigger.
+
+---
+
+## 13. Recetas
 
 **Registro completo (móvil)**
 
@@ -488,7 +708,7 @@ curl -s localhost:9000/v1/me -H "Authorization: Bearer $TOKEN" | jq '.permission
 
 ---
 
-## 12. Checklist para un cliente nuevo
+## 14. Checklist para un cliente nuevo
 
 1. Login o registro → guardar `access_token` y `refresh_token` (el panel no recibe el refresh:
    va en cookie).
@@ -498,3 +718,43 @@ curl -s localhost:9000/v1/me -H "Authorization: Bearer $TOKEN" | jq '.permission
 5. Leer `error.code`, nunca `message`.
 6. En el panel: mandar `X-CSRF-Token` en refresh y logout, y nunca leer la cookie
    `refresh_token`.
+
+---
+
+## 13. Grafo social
+
+### 13.1 Seguir
+
+```http
+POST /v1/follows          { "coUser": "<uuid>" }   → 204
+DELETE /v1/follows/{coUser}                        → 204
+GET /v1/follows?direction=following|followers&page=1&limit=20
+```
+
+El grafo es asimétrico: seguir a alguien no dice nada sobre si esa persona te sigue. Ambas
+mutaciones son **idempotentes** — repetir un follow o borrar uno que no existe también responde
+`204`, porque el grafo es un conjunto y no un historial de intenciones.
+
+`mutual: true` en el listado marca un amigo: existe también la arista inversa. Se calcula en
+cada lectura y **nunca se guarda**: el grafo cambia todos los días y un flag almacenado se
+pudre en uno. Seguirte a vos mismo es `422` con `field: coUser`.
+
+### 13.2 Check-in
+
+```http
+POST /v1/places/{coPlace}/checkins   { "near": "10.4806,-66.9036" }   → 201
+```
+
+La coordenada **prueba** la presencia y después se descarta: solo se guarda el veredicto
+(`PROXIMITY`). No se almacena la coordenada ni la distancia, así que no hay rastro de ubicación
+que purgar.
+
+- Fuera del radio del lugar → `422 not_near_place`. No se degrada a "afirmación libre": decir
+  "no estás ahí" es honesto; registrar lo que la persona no hizo envenena justamente la señal
+  que este endpoint existe para dar.
+- Segundo check-in el mismo día en el mismo lugar → `409 already_checked_in`. La regla vive en
+  el esquema (índice único sobre usuario, lugar y día), no en el servicio.
+- Un lugar borrado o inactivo → `404`, igual que en el resto de las rutas de lugar.
+
+Un check-in es un hecho **append-only**: no se edita ni se borra lógicamente, y por eso no está
+en el conjunto de tablas de historia.
