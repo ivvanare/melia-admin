@@ -42,6 +42,21 @@ dependency-injection error that only happens when a component renders. A spec th
 template with `routerLink` and stubs `Router` compiles and fails at runtime — that happened, and
 the CI job `admin` is what caught it.
 
+## Panel UI base
+
+The panel's own table and dialog presentation lives in `src/app/shared/`:
+
+- `app-data-table` (`data-table/`) renders the panel table — column definitions, a text value per
+  cell, an optional actions template, an empty state. **A new screen renders its rows through it**,
+  including a screen built on `ng-crud-maker`; the vendor table is what created the second visual
+  language in the first place.
+- `app-dialog-shell` (`dialog-shell/`) is the body inside an `nz-modal`: lead line, both error slots,
+  and two projected columns (`slot="left"` / `slot="right"`). The modal still owns the portal, focus
+  and footer. Dialog field styles are global, in `src/styles.css`, because a portalled dialog cannot
+  read a component stylesheet.
+- `Users` and `Audit` still render `crud-list-screen`; migrating them is outstanding work, and the
+  migration target is `app-data-table`, not a third idiom.
+
 ## The `crud-maker` sibling
 
 `ng-crud-maker` and `ng-crud-maker-zorro` live in [`ivvanare/crud-maker`](https://github.com/ivvanare/crud-maker)
