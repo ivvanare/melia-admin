@@ -459,7 +459,8 @@ button {
   padding: 8px 11px;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
-  background: var(--surface);
+  /* One step off the dialog surface, so a field is visible in both themes. */
+  background: var(--surface-muted);
   color: var(--ink);
 }
 
@@ -512,6 +513,7 @@ button {
 
   --line: #22304a;
   --line-soft: rgba(255, 255, 255, 0.07);
+  --surface-2: #18242f;
   --pill-bg: #1e2c40;
   --pill-ink: #9fb0c4;
 
@@ -567,3 +569,176 @@ button {
   color: var(--ink);
   border-color: var(--accent);
 }
+
+/* --------------------------------------------------------------------------
+   ng-zorro bridge.
+
+   ng-zorro 22 ships a "variable" build, but it exposes only the primary colour
+   family (40 custom properties) and has no dark counterpart, so it cannot theme
+   radius or surfaces at runtime. The one honest route is this layer: vendor
+   markup, our tokens.
+
+   Specificity, not order: `PanelLayout` appends the vendor stylesheet to <head>
+   after this file, so an equal-specificity rule would lose. Every selector here
+   is prefixed with `body` (and compound where the vendor gets more specific),
+   which wins regardless of when the vendor sheet loads.
+   -------------------------------------------------------------------------- */
+
+/* Radius: the panel's convention is 9px for controls and 12px for surfaces. */
+body .ant-btn,
+body .ant-btn-lg,
+body .ant-btn-sm,
+body .ant-input,
+body .ant-input-affix-wrapper,
+body .ant-input-number,
+body .ant-picker,
+body .ant-select:not(.ant-select-customize-input) .ant-select-selector,
+body .ant-select-dropdown,
+body .ant-checkbox-inner,
+body .ant-tag {
+  border-radius: var(--radius-sm);
+}
+
+body .ant-tag {
+  border-radius: var(--radius-pill);
+}
+
+body .ant-modal-content,
+body .ant-modal-confirm-body,
+body .ant-card,
+body .ant-message-notice-content,
+body .ant-notification-notice,
+body .ant-popover-inner {
+  border-radius: var(--radius);
+}
+
+/* The dialog surface: same token as every card, so dark mode cannot drift. */
+body .ant-modal-content {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow-lg);
+  padding: 20px 24px;
+}
+
+body .ant-modal-header,
+body .ant-modal-footer {
+  background: transparent;
+  border-color: var(--line);
+}
+
+body .ant-modal-header {
+  padding-bottom: 12px;
+  margin-bottom: 16px;
+}
+
+body .ant-modal-footer {
+  padding-top: 14px;
+  margin-top: 16px;
+}
+
+body .ant-modal-title {
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+body .ant-modal-close,
+body .ant-modal-close-x {
+  color: var(--muted);
+}
+
+body .ant-modal-close:hover,
+body .ant-modal-close:focus {
+  color: var(--ink);
+}
+
+/* Fields: the modal is `--surface`, so a field sits on `--surface-muted` and keeps its
+   border. Without this, the vendor's own dark input grey fought the dialog background. */
+body .ant-input,
+body .ant-input-affix-wrapper,
+body .ant-input-number,
+body .ant-picker,
+body .ant-select:not(.ant-select-customize-input) .ant-select-selector,
+body textarea.ant-input {
+  background: var(--surface-muted);
+  border: 1px solid var(--line);
+  color: var(--ink);
+}
+
+body .ant-input::placeholder,
+body .ant-select-selection-placeholder,
+body .ant-picker-input > input::placeholder {
+  color: var(--muted);
+}
+
+body .ant-input:hover,
+body .ant-input-affix-wrapper:hover,
+body .ant-select:not(.ant-select-customize-input) .ant-select-selector:hover {
+  border-color: var(--accent-ring);
+}
+
+body .ant-input:focus,
+body .ant-input-focused,
+body .ant-input-affix-wrapper-focused,
+body .ant-select-focused:not(.ant-select-disabled).ant-select:not(.ant-select-customize-input) .ant-select-selector,
+body .ant-picker-focused {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+body .ant-select-dropdown {
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+
+body .ant-select-item {
+  color: var(--ink);
+}
+
+body .ant-select-item-option-active:not(.ant-select-item-option-disabled) {
+  background: var(--surface-muted);
+}
+
+body .ant-select-item-option-selected:not(.ant-select-item-option-disabled) {
+  background: var(--accent-soft);
+  color: var(--ink);
+}
+
+/* Buttons: the vendor's primary blue would be a second accent in the same screen. */
+body .ant-btn.ant-btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+
+body .ant-btn.ant-btn-primary:not(:disabled):hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+body .ant-btn.ant-btn-default {
+  background: var(--surface);
+  border-color: var(--line);
+  color: var(--ink);
+}
+
+body .ant-btn.ant-btn-default:not(:disabled):hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+body .ant-btn:focus-visible {
+  outline: 2px solid var(--accent-ring);
+  outline-offset: 1px;
+}
+
+body .ant-checkbox-checked .ant-checkbox-inner {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+body .ant-checkbox-wrapper:hover .ant-checkbox-inner,
+body .ant-checkbox:hover .ant-checkbox-inner {
+  border-color: var(--accent);
+}
+

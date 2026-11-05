@@ -49,6 +49,7 @@ Test runners: `npx ng test admin --watch=false`; `tsc --noEmit` for `tsconfig.ap
 | T6 | S6, S7 | done | `tsc` app + spec, full suite, `ng build` |
 | T7 | S2 | done | Record the forward rule where the next author will read it |
 | T8 | S2, S6 | done | Users renders its rows through `<app-data-table>`, with its own query state (search, status, scope, paging, row actions) instead of `crud-list-screen` |
+| T10 | S7 | done | ng-zorro follows the panel's radius and surface tokens through a documented bridge layer, and the `--surface-2` dark gap is closed |
 | T9 | S2, S6 | done | Audit renders its rows through `<app-data-table>`, keeping the exact-event filter, the user and email-hash filters and the two `datetime-local` range inputs |
 
 ## Log
@@ -95,3 +96,16 @@ Test runners: `npx ng test admin --watch=false`; `tsc --noEmit` for `tsconfig.ap
   app and spec exit 0, `ng test admin` **119 tests / 24 files green** with both specs unedited,
   `ng build` green. `crud-list-screen` no longer renders any panel screen; `ng-crud-maker` stays as a
   dependency for `ListQuery`, the demo screen and the transport contract.
+- **L10** (decision, user + parent): the human asked for ng-zorro to follow the rounded-corner convention
+  "quizás haciendo un theme", plus a correct dark balance between the modal background and its inputs.
+  Investigated before building: ng-zorro 22 ships `ng-zorro-antd.variable.css`, but it defines only 40
+  custom properties — the primary colour family — with no radius, no surface and **no dark variant**.
+  A declarative theme is therefore not available, so the honest route is one bridge layer in
+  `src/styles.css`: vendor selectors, panel tokens, each prefixed with `body` because `PanelLayout`
+  appends the vendor sheet to `<head>` after ours and an equal-specificity rule would lose.
+  Radius is 9px for controls and 12px for surfaces from `--radius-sm`/`--radius`; the modal, its header
+  and footer, the fields, the dropdown, the primary and default buttons and the checkbox now read the
+  panel's tokens instead of Ant's palette.
+- **L11** (bug, parent): `--surface-2` had a light value only. Dark mode inherited `#f8fafc`, so every
+  soft surface turned near-white: the Places card footer, the access-denied panel and three auth screens.
+  Closed with a dark value in the same commit as the bridge.
