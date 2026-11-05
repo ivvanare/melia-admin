@@ -191,10 +191,20 @@ no `place`, the admin row has `place` and no `viaFollowedAuthor`.
 
 ## Branches and commits
 
-`dev` → `quality` → `prod`, promoting in one direction; work on a short-lived branch and open the
-PR against `dev`. This repository is one side, so the old cross-side guardrail does not apply;
-keep a commit about one thing, with its tests and docs, and never commit `dist/` or
-`node_modules/`.
+**Prototype stage, until the first version ships.** We are the only people working on this repository,
+so the branch/PR ceremony is suspended on purpose: commit directly on `dev`, push, and let CI report.
+Do not open a pull request for routine work, and do not block on green CI before pushing — CI here is a
+smoke signal, not a gate.
+
+What still holds, because it costs nothing and prevents real damage:
+
+- keep a commit about one thing, with its tests and docs alongside it;
+- never commit `dist/` or `node_modules/`;
+- `dev` → `quality` → `prod` remains the promotion direction whenever releases start, and `prod` is
+  never where development happens.
+
+When the first version is tagged, reinstate the short-lived branch and the PR against `dev` — the
+protection is worth it once more than one person can push.
 
 ## Testing
 
@@ -247,13 +257,14 @@ changes what the panel's data means: follow listings and review visibility exclu
 directions**, so a review can legitimately disappear from a result the panel is reading. The panel needs
 no code for it — and must not cache viewer-relative results across users because of it.
 
-**Notification preferences** exist (`GET`/`PATCH /v1/notifications/preferences`), and the delivery
-rules matter if a screen is built: `GET` returns the **whole catalogue**, so the UI renders a switch per
-entry instead of guessing which kinds exist; an **absent preference means enabled**, so nothing needs
-seeding; and a `PATCH` with an unknown `kind` is `422 field: kind, code: unknown` — a switch for a kind
-that does not exist would be a switch that lies. Notification *delivery* remains out of scope until the
-mobile client exists, and the invitation email is **courtesy, never a condition**: the invitation answers
-`201` whether or not the mail can leave, so no UI logic may depend on it having arrived.
+**Notification preferences** exist in the contract (`GET`/`PATCH /v1/notifications/preferences`) and the
+panel deliberately does **not** surface them. Their only kind is `invitation.received`, a client-side
+event: configuring when an invitation reaches you is participation, and this panel does not participate.
+The rules are recorded for when a kind exists that an administrator actually receives: the `GET` returns
+the whole catalogue so switches are rendered rather than guessed, an absent row means **enabled**, and an
+unknown `kind` is a `422` instead of a stored lie.
+The invitation email itself is **courtesy, never a condition**: the invitation answers `201` whether or
+not the mail can leave, so no UI logic may depend on it having arrived.
 
 One invariant worth checking whenever a list looks wrong: a page of rows and its `total` must agree. The
 API once answered `total=1` with zero rows under an active block; paginating that pages forever through

@@ -4,20 +4,6 @@ import { provideRouter, Router } from '@angular/router';
 import { vi } from 'vitest';
 import { Account } from './account';
 import { AuthService, type Me } from '../core/auth.service';
-import { AdminApi } from '../core/admin-api';
-
-/** The notification catalogue the API returns: whole, newest state included. */
-const PREFERENCES = [{ kind: 'invitation.received', enabled: true }];
-
-const getNotificationPreferences = vi.fn();
-const setNotificationPreference = vi.fn();
-
-function apiStub(): { provide: unknown; useValue: unknown } {
-  return {
-    provide: AdminApi,
-    useValue: { getNotificationPreferences, setNotificationPreference },
-  } as { provide: unknown; useValue: unknown };
-}
 
 const USER: Me = {
   id: 'u1',
@@ -47,11 +33,9 @@ describe('Account', () => {
       imports: [Account],
       providers: [
         { provide: AuthService, useValue: { user, logout } },
-        apiStub() as never,
         // The template links to /login in the done state, so the real router is needed;
         // navigation itself is spied per test.
         provideRouter([]),
-        apiStub() as never,
       ],
     });
     // The real router provides the directives the template needs; navigation is spied so
@@ -162,70 +146,5 @@ describe('Account — change email', () => {
     const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
     expect(text).toContain('Email updated');
     expect(text).toContain('sign in again');
-  });
-});
-
-describe('Account — notification preferences', () => {
-  const user = signal<Me | null>(USER);
-
-  beforeEach(() => {
-    TestBed.resetTestingModule();
-    getNotificationPreferences.mockReset().mockResolvedValue(PREFERENCES);
-    setNotificationPreference.mockReset().mockResolvedValue(undefined);
-    TestBed.configureTestingModule({
-      imports: [Account],
-      providers: [
-        { provide: AuthService, useValue: { user, logout: vi.fn().mockResolvedValue(undefined) } },
-        apiStub() as never,
-        provideRouter([]),
-      ],
-    });
-  });
-
-  async function render(): Promise<HTMLElement> {
-    const fixture = TestBed.createComponent(Account);
-    fixture.detectChanges();
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    fixture.detectChanges();
-    return fixture.nativeElement as HTMLElement;
-  }
-
-  it('renders one switch per catalogue entry, in the state the API returned', async () => {
-    const element = await render();
-
-    expect(getNotificationPreferences).toHaveBeenCalled();
-    const switches = [...element.querySelectorAll<HTMLInputElement>('input[role="switch"]')];
-    expect(switches).toHaveLength(PREFERENCES.length);
-    expect(switches[0]!.checked).toBe(true);
-    expect(switches[0]!.getAttribute('data-kind')).toBe('invitation.received');
-  });
-
-  it('writes the chosen state for that kind', async () => {
-    const element = await render();
-    const toggle = element.querySelector<HTMLInputElement>('input[role="switch"]')!;
-
-    toggle.checked = false;
-    toggle.dispatchEvent(new Event('change'));
-    await new Promise((resolve) => setTimeout(resolve, 0));
-
-    expect(setNotificationPreference).toHaveBeenCalledWith('invitation.received', false);
-  });
-
-  it('puts the switch back and shows the code when the API refuses', async () => {
-    const { HttpErrorResponse } = await import('@angular/common/http');
-    setNotificationPreference.mockRejectedValue(
-      new HttpErrorResponse({ status: 422, error: { error: { code: 'validation_failed' } } }),
-    );
-    const element = await render();
-    const toggle = element.querySelector<HTMLInputElement>('input[role="switch"]')!;
-
-    toggle.checked = false;
-    toggle.dispatchEvent(new Event('change'));
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    TestBed.createComponent(Account).detectChanges();
-
-    expect(toggle.checked).toBe(true);
-    expect(element.textContent).toContain('validation_failed');
   });
 });
