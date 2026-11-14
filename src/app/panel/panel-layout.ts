@@ -5,6 +5,7 @@ import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } fro
 import { filter, map, startWith } from 'rxjs';
 import { AuthService } from '../core/auth.service';
 import { ThemeService } from '../core/theme.service';
+import { TourService } from '../core/tour.service';
 import {
   CaretDownOutline,
   CaretUpOutline,
@@ -62,6 +63,7 @@ export class PanelLayout {
   private readonly iconService = inject(NzIconService);
   private readonly i18n = inject(NzI18nService);
   private readonly theme = inject(ThemeService);
+  private readonly tour = inject(TourService);
 
   protected readonly isDark = this.theme.isDark;
 
@@ -86,6 +88,10 @@ export class PanelLayout {
 
   protected toggleTheme(): void {
     this.theme.toggle();
+  }
+
+  protected startTour(): void {
+    this.tour.startPanelTour();
   }
 
   protected readonly initials = computed(() => {
