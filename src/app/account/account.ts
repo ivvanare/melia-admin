@@ -27,6 +27,16 @@ export class Account {
 
   protected readonly canConfirm = computed(() => /^\d{6}$/.test(this.code()));
 
+  protected readonly initials = computed(() => {
+    const user = this.auth.user();
+    const source = user?.name?.trim() || user?.email?.trim() || '?';
+    const parts = source.split(/[\s@.]+/).filter(Boolean);
+    return parts
+      .slice(0, 2)
+      .map((part) => part[0]!.toUpperCase())
+      .join('');
+  });
+
   protected async requestChange(event: Event): Promise<void> {
     event.preventDefault();
     const email = this.newEmail().trim();

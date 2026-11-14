@@ -1,116 +1,211 @@
-<section class="account">
-  <h1>Account</h1>
+<section class="account-screen">
+  <div class="pagehead">
+    <div>
+      <h1>My account</h1>
+      <p>Operator profile, active session and email credentials</p>
+    </div>
+  </div>
 
   @if (emailStep() === 'done') {
-    <section class="panel" aria-labelledby="email-done">
-      <h2 id="email-done">Email updated</h2>
-      <p>
-        The account now answers at <strong>{{ sentTo() }}</strong>. Every session was closed,
-        including this one: sign in again with the new address.
-      </p>
-      <a class="btn primary as-link" routerLink="/login">Go to sign in</a>
+    <section class="card done-card" aria-labelledby="email-done">
+      <div class="done-icon" aria-hidden="true">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.8" />
+          <path d="m8.5 12.5 2.5 2.5 4.5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      </div>
+      <div class="done-body">
+        <h2 id="email-done">Email updated</h2>
+        <p class="done-text">
+          The account now answers at <strong>{{ sentTo() }}</strong>. Every session was closed,
+          including this one: sign in again with the new address.
+        </p>
+        <a class="btn primary as-link" routerLink="/login">Go to sign in</a>
+      </div>
     </section>
   } @else {
-    @if (auth.user(); as user) {
-      <dl>
-        <dt>Name</dt>
-        <dd>{{ user.name ?? '—' }}</dd>
-        <dt>Email</dt>
-        <dd>{{ user.email ?? '—' }}</dd>
-        <dt>Status</dt>
-        <dd>{{ user.status }}</dd>
-        <dt>Roles</dt>
-        <dd>{{ user.roles.length ? user.roles.join(', ') : 'none' }}</dd>
-      </dl>
-    } @else {
-      <p>Loading your profile…</p>
-    }
+    <div class="account-grid">
+      <!-- Profile & Session Card -->
+      <section class="card profile-card" aria-labelledby="profile-title">
+        <div class="card-head">
+          <div class="card-head-title">
+            <h2 id="profile-title">Operator profile</h2>
+            <p>Details returned by your authenticated session</p>
+          </div>
+        </div>
 
-    <button type="button" class="btn secondary" (click)="signOut()">Sign out</button>
-
-
-    <section class="panel" aria-labelledby="email-change">
-      <h2 id="email-change">Change email</h2>
-
-      @if (emailStep() === 'form') {
-        <p class="hint">
-          The code goes to the new address. Your password is required: a stolen session alone
-          must not be able to move the account.
-        </p>
-
-        <form (submit)="requestChange($event)">
-          <div class="field">
-            <label for="new-email">New email</label>
-            <input
-              id="new-email"
-              class="panel-input"
-              type="email"
-              autocomplete="email"
-              [value]="newEmail()"
-              [disabled]="submitting()"
-              (input)="newEmail.set($any($event.target).value)"
-            />
+        @if (auth.user(); as user) {
+          <div class="profile-hero">
+            <div class="avatar" aria-hidden="true">{{ initials() }}</div>
+            <div class="hero-info">
+              <span class="hero-name">{{ user.name ?? '—' }}</span>
+              <span class="hero-email">{{ user.email ?? '—' }}</span>
+            </div>
           </div>
 
-          <div class="field">
-            <label for="current-password">Current password</label>
-            <input
-              id="current-password"
-              class="panel-input"
-              type="password"
-              autocomplete="current-password"
-              [value]="password()"
-              [disabled]="submitting()"
-              (input)="password.set($any($event.target).value)"
-            />
+          <div class="details-list">
+            <div class="detail-row">
+              <span class="detail-label">Status</span>
+              <span class="detail-value">
+                <span class="tag" [class.ok]="user.status === 'ACTIVE'" [class.neutral]="user.status !== 'ACTIVE'">
+                  {{ user.status }}
+                </span>
+              </span>
+            </div>
+
+            <div class="detail-row">
+              <span class="detail-label">Roles</span>
+              <span class="detail-value role-tags">
+                @if (user.roles.length > 0) {
+                  @for (role of user.roles; track role) {
+                    <span class="tag info">{{ role }}</span>
+                  }
+                } @else {
+                  <span class="muted">none</span>
+                }
+              </span>
+            </div>
+
+            <div class="detail-row">
+              <span class="detail-label">Email verified</span>
+              <span class="detail-value">
+                @if (user.email_verified_at) {
+                  <span class="tag ok">Verified</span>
+                } @else {
+                  <span class="tag warn">Pending</span>
+                }
+              </span>
+            </div>
+
+            <div class="detail-row">
+              <span class="detail-label">Member since</span>
+              <span class="detail-value muted">
+                {{ user.created_at ? user.created_at.slice(0, 10) : '—' }}
+              </span>
+            </div>
           </div>
 
-          @if (errorCode(); as code) {
-            <p class="error" role="alert">{{ code }}</p>
-          }
-
-          <button
-            type="submit"
-            class="btn primary"
-            [disabled]="submitting() || newEmail().trim() === '' || password() === ''"
-          >
-            {{ submitting() ? 'Sending the code…' : 'Send the code' }}
-          </button>
-        </form>
-      } @else {
-        <p class="hint">
-          If <strong>{{ sentTo() }}</strong> accepts mail, a six-digit code is on its way. It
-          expires in ten minutes.
-        </p>
-
-        <form (submit)="confirmChange($event)">
-          <div class="field">
-            <label for="email-code">Code</label>
-            <input
-              id="email-code"
-              class="panel-input code"
-              type="text"
-              inputmode="numeric"
-              maxlength="6"
-              autocomplete="one-time-code"
-              [value]="code()"
-              [disabled]="submitting()"
-              (input)="code.set($any($event.target).value.trim())"
-            />
-          </div>
-
-          @if (errorCode(); as error) {
-            <p class="error" role="alert">{{ error }}</p>
-          }
-
-          <div class="actions">
-            <button type="submit" class="btn primary" [disabled]="submitting() || !canConfirm()">
-              {{ submitting() ? 'Confirming…' : 'Confirm the new email' }}
+          <div class="card-footer">
+            <button type="button" class="btn secondary signout-btn" (click)="signOut()">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path
+                  d="M15 6H7v12h8M13 12H4m0 0 3.5-3.5M4 12l3.5 3.5"
+                  stroke="currentColor"
+                  stroke-width="1.9"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+              Sign out
             </button>
-            <button type="button" class="btn secondary" (click)="backToForm()">Cancel</button>
           </div>
-        </form>
-      }
-    </section>
+        } @else {
+          <div class="loading-state">
+            <p>Loading your profile…</p>
+          </div>
+        }
+      </section>
+
+      <!-- Change Email Card -->
+      <section class="card security-card" aria-labelledby="email-change">
+        <div class="card-head">
+          <div class="card-head-title">
+            <h2 id="email-change">Change email</h2>
+            <p>Update the email address associated with your operator account</p>
+          </div>
+        </div>
+
+        @if (emailStep() === 'form') {
+          <div class="card-content">
+            <p class="hint">
+              The code goes to the new address. Your password is required: a stolen session alone
+              must not be able to move the account.
+            </p>
+
+            <form (submit)="requestChange($event)">
+              <div class="field">
+                <label for="new-email">New email</label>
+                <input
+                  id="new-email"
+                  class="panel-input"
+                  type="email"
+                  placeholder="operator@domain.com"
+                  autocomplete="email"
+                  [value]="newEmail()"
+                  [disabled]="submitting()"
+                  (input)="newEmail.set($any($event.target).value)"
+                />
+              </div>
+
+              <div class="field">
+                <label for="current-password">Current password</label>
+                <input
+                  id="current-password"
+                  class="panel-input"
+                  type="password"
+                  placeholder="••••••••••••"
+                  autocomplete="current-password"
+                  [value]="password()"
+                  [disabled]="submitting()"
+                  (input)="password.set($any($event.target).value)"
+                />
+              </div>
+
+              @if (errorCode(); as code) {
+                <div class="alert" role="alert">
+                  <p>Request failed: <code>{{ code }}</code></p>
+                </div>
+              }
+
+              <button
+                type="submit"
+                class="btn primary submit-btn"
+                [disabled]="submitting() || newEmail().trim() === '' || password() === ''"
+              >
+                {{ submitting() ? 'Sending the code…' : 'Send the code' }}
+              </button>
+            </form>
+          </div>
+        } @else {
+          <div class="card-content">
+            <p class="hint">
+              If <strong>{{ sentTo() }}</strong> accepts mail, a six-digit code is on its way. It
+              expires in ten minutes.
+            </p>
+
+            <form (submit)="confirmChange($event)">
+              <div class="field">
+                <label for="email-code">Six-digit code</label>
+                <input
+                  id="email-code"
+                  class="panel-input code"
+                  type="text"
+                  inputmode="numeric"
+                  maxlength="6"
+                  placeholder="000000"
+                  autocomplete="one-time-code"
+                  [value]="code()"
+                  [disabled]="submitting()"
+                  (input)="code.set($any($event.target).value.trim())"
+                />
+              </div>
+
+              @if (errorCode(); as error) {
+                <div class="alert" role="alert">
+                  <p>Confirmation failed: <code>{{ error }}</code></p>
+                </div>
+              }
+
+              <div class="actions">
+                <button type="submit" class="btn primary" [disabled]="submitting() || !canConfirm()">
+                  {{ submitting() ? 'Confirming…' : 'Confirm the new email' }}
+                </button>
+                <button type="button" class="btn secondary" (click)="backToForm()">Cancel</button>
+              </div>
+            </form>
+          </div>
+        }
+      </section>
+    </div>
   }
 </section>

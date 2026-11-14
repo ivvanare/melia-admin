@@ -2,76 +2,177 @@
   display: block;
 }
 
-.account {
-  max-width: 36rem;
+.account-screen {
+  max-width: 64rem;
 }
 
-h1 {
-  font-size: 22px;
-  font-weight: 700;
-  margin-bottom: 16px;
-}
-
-dl {
+.account-grid {
   display: grid;
-  grid-template-columns: 8rem 1fr;
-  gap: 0.5rem 1rem;
-  margin: 0 0 1.25rem;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 20px;
+  align-items: start;
+}
+
+/* Card layout */
+.card-head {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--line);
+}
+
+.card-head-title h2 {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.card-head-title p {
+  font-size: 12.5px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+/* Profile Hero */
+.profile-hero {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 20px;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--line);
+}
+
+.avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(135deg, var(--accent), #e03f1b);
+  color: #fff;
+  font-size: 16px;
+  font-weight: 750;
+  letter-spacing: 0.02em;
+  display: grid;
+  place-items: center;
+  flex: none;
+  box-shadow: 0 2px 6px rgba(255, 90, 54, 0.25);
+}
+
+.hero-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.hero-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hero-email {
+  font-size: 12.5px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Details list */
+.details-list {
+  padding: 8px 20px;
+}
+
+.detail-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--line-soft);
+  font-size: 13px;
+}
+
+.detail-row:last-child {
+  border-bottom: 0;
+}
+
+.detail-label {
+  font-weight: 550;
+  color: var(--muted);
+  flex: none;
+}
+
+.detail-value {
+  font-weight: 600;
+  color: var(--ink);
+  text-align: right;
+  word-break: break-word;
+}
+
+.role-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  justify-content: flex-end;
+}
+
+.card-footer {
+  padding: 14px 20px;
+  border-top: 1px solid var(--line);
+  background: var(--surface-2);
+  display: flex;
+  justify-content: flex-end;
+}
+
+.signout-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.loading-state {
+  padding: 32px 20px;
+  text-align: center;
+  color: var(--muted);
   font-size: 13.5px;
 }
 
-dt {
-  font-weight: 650;
-  color: var(--muted);
-}
-
-dd {
-  margin: 0;
-}
-
-.account > button {
-  margin-top: 0;
-}
-
-/* ---------- change email ---------- */
-.panel {
-  margin-top: 1.75rem;
-  padding-top: 1.25rem;
-  border-top: 1px solid var(--line);
-}
-
-.panel h2 {
-  font-size: 14px;
-  font-weight: 700;
-  margin-bottom: 6px;
+/* Change Email Form */
+.card-content {
+  padding: 20px;
 }
 
 .hint {
   font-size: 12.5px;
   color: var(--muted);
-  max-width: 58ch;
-  margin-bottom: 12px;
+  line-height: 1.55;
+  margin-bottom: 16px;
 }
 
 .field {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 6px;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
 }
 
 .field label {
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 650;
+  color: var(--slate);
 }
 
 .panel-input {
   font: inherit;
-  font-size: 13px;
-  padding: 8px 11px;
+  font-size: 13.5px;
+  padding: 9px 12px;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   background: var(--surface);
   color: var(--ink);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .panel-input:focus-visible {
@@ -81,24 +182,76 @@ dd {
 }
 
 .panel-input.code {
-  letter-spacing: 0.3em;
+  letter-spacing: 0.35em;
   font-family: var(--font-mono);
+  font-size: 16px;
+  font-weight: 700;
+  text-align: center;
+  max-width: 200px;
 }
 
-.error {
-  margin: 0 0 12px;
-  font-size: 13px;
-  color: var(--tag-danger-ink);
+.alert {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--alert-line);
+  background: var(--alert-bg);
+  color: var(--alert-ink);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  font-size: 12.5px;
+  margin-bottom: 16px;
+}
+
+.alert code {
+  font-family: var(--font-mono);
+  background: var(--alert-code-bg);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-size: 12px;
 }
 
 .actions {
   display: flex;
+  align-items: center;
   gap: 10px;
   flex-wrap: wrap;
 }
 
+.submit-btn {
+  width: 100%;
+}
+
+/* Done Card */
+.done-card {
+  display: flex;
+  gap: 18px;
+  padding: 28px 24px;
+  align-items: flex-start;
+}
+
+.done-icon {
+  color: var(--ok);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.done-body h2 {
+  font-size: 17px;
+  font-weight: 700;
+  margin-bottom: 6px;
+  color: var(--ink);
+}
+
+.done-text {
+  font-size: 13.5px;
+  color: var(--slate);
+  line-height: 1.6;
+  margin-bottom: 16px;
+  max-width: 50ch;
+}
+
 .as-link {
   display: inline-flex;
-  margin-top: 10px;
   text-decoration: none;
 }
