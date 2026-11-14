@@ -108,8 +108,8 @@ Rules that matter here:
 ## Discovery endpoints (in `melia`, not in `contract/` yet)
 
 The discovery and social routes are in `contract/`, pinned to a pushed commit of
-`feat/api-social-graph` (`0aa2e7c3`): `GET /v1/places` (list and map), the review routes,
-`PATCH /v1/admin/reviews/{coReview}`, `/v1/follows` and the check-in route. The rule that matters when
+`feat/api-photos-replace` (`23fc244`): `GET /v1/places` (list and map), the review routes,
+`PATCH /v1/admin/reviews/{coReview}`, `/v1/follows`, check-ins and the gallery replace route. The rule that matters when
 the API moves again: run `scripts/sync-contract.sh <commit>` only when that commit is **remote**, because
 the `contract` CI job fetches it from the API's repository; pinning an unpushed one turns the job red for
 a reason that means nothing. The script refuses a checkout that is not at that commit, so do not switch
@@ -307,12 +307,9 @@ properties of those writes, each of which has already caused a bug elsewhere:
   `code`, while the catalogue's uuid only identifies the row. Reusing the vocabulary from an endpoint is
   the only way to keep the options honest — hardcoding codes is the mistake the id-field rule forbids.
 
-**Photos** now have upload, delete and read. The read comes free with `GET /v1/admin/places/{coPlace}`,
-which carries `schedules`, `attributes`, `menus`, `photos` and `rating` — so the dialog loads from **one**
-call. The listing still omits them on purpose: that would be two extra queries per row. **Photos** were
-the last place-content gap; what remains is the `PUT` for ordering and choosing a cover without
-re-uploading (the API is adding it, and its `order` field was being ignored until they fix it). The decision taken: **a local volume for dev**, revisited before
-any production release — a container-local volume is lost when the container is recreated, so it is a
-development answer, not a deployment one. Nothing is built until the API exposes the upload routes;
-the panel will send bytes, never a path, and the contract has to say where the files are served from so
-a preview can be rendered.
+**Photos** have upload, delete, read, and bulk PUT (`/v1/admin/places/{coPlace}/photos`). The read
+comes free with `GET /v1/admin/places/{coPlace}`, which carries `schedules`, `attributes`, `menus`,
+`photos` and `rating` — so the dialog loads from **one** call. The bulk PUT replaces the live set without
+re-uploading bytes, handling reordering and cover reassignment. The decision taken: **a local volume for dev**,
+revisited before any production release — a container-local volume is lost when the container is recreated,
+so it is a development answer, not a deployment one.

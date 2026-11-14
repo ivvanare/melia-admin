@@ -470,7 +470,23 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        put?: never;
+        /**
+         * Replace the live gallery of a place
+         * @description Requires `place.update`, scoped by ownership. The body is the whole live set: the listed
+         *     photos take the given `type` and `order`, and every live photo the list omits is retired
+         *     logically — the row stays, so an audit still sees what was published.
+         *
+         *     No bytes travel. This is how a gallery is reordered, or its cover handed to another
+         *     photo, without uploading the same image a second time: re-uploading duplicated the file
+         *     and lost the original.
+         *
+         *     `photos` is required. Omitting the key is `422` with field `photos`, while an explicit
+         *     empty array is a real request: retire the whole gallery. A `coPhoto` that is not a live
+         *     image of this place is `422` with field `photos` and code `unknown` instead of being
+         *     ignored. Two covers, a repeated photo, an unknown `type` or a negative `order` is `422`
+         *     with code `invalid`.
+         */
+        put: operations["replacePlacePhotos"];
         /**
          * Upload an image for a place
          * @description Requires `place.update`, scoped by ownership. `multipart/form-data` with `file` (max
@@ -1534,6 +1550,14 @@ export interface components {
             coPhoto: string;
             /** @description Path under the API origin */
             url: string;
+            /** @enum {string} */
+            type: "COVER" | "GALLERY";
+            order: number;
+        };
+        /** @description One image in a replace-the-gallery request, without a URL. The bytes never travel again. */
+        PlacePhotoPlacement: {
+            /** Format: uuid */
+            coPhoto: string;
             /** @enum {string} */
             type: "COVER" | "GALLERY";
             order: number;
@@ -2681,6 +2705,36 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    replacePlacePhotos: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                coPlace: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    photos: components["schemas"]["PlacePhotoPlacement"][];
+                };
+            };
+        };
+        responses: {
+            /** @description Replaced. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
             422: components["responses"]["ValidationError"];
         };

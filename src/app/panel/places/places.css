@@ -307,7 +307,10 @@
 
 .thumb {
   margin: 0;
-  width: 104px;
+  width: 112px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .thumb img {
@@ -324,7 +327,29 @@
   align-items: center;
   justify-content: space-between;
   gap: 4px;
-  margin-top: 4px;
+}
+
+.thumb-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2px;
+}
+
+.thumb-nav {
+  display: flex;
+  gap: 2px;
+}
+
+.thumb-btn {
+  padding: 2px 5px;
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+.cover-btn {
+  font-size: 10.5px;
+  padding: 2px 4px;
 }
 
 .photo-actions {

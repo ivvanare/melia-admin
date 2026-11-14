@@ -13,6 +13,7 @@ import {
   type PlaceMenu,
   type PlaceMenuItem,
   type PlacePhoto,
+  type PlacePhotoPlacement,
 } from '../../core/admin-api';
 import { apiErrorCode } from '../../core/api-error';
 import { AuthService } from '../../core/auth.service';
@@ -437,6 +438,82 @@ export class Places {
     try {
       await this.api.deletePlacePhoto(place.coPlace, photo.coPhoto);
       this.photos.update((photos) => photos.filter((p) => p.coPhoto !== photo.coPhoto));
+    } catch (error) {
+      this.photoErrorCode.set(apiErrorCode(error));
+    } finally {
+      this.uploading.set(false);
+    }
+  }
+
+  /**
+   * Reorders the gallery by shifting a photo to an adjacent position and replacing the
+   * whole set via `PUT /v1/admin/places/{coPlace}/photos` without re-uploading bytes.
+   */
+  protected async movePhoto(fromIndex: number, toIndex: number): Promise<void> {
+    const place = this.editing();
+    const current = [...this.photos()];
+    if (
+      !place ||
+      this.uploading() ||
+      fromIndex < 0 ||
+      toIndex < 0 ||
+      fromIndex >= current.length ||
+      toIndex >= current.length ||
+      fromIndex === toIndex
+    ) {
+      return;
+    }
+
+    const [moved] = current.splice(fromIndex, 1);
+    if (!moved) return;
+    current.splice(toIndex, 0, moved);
+
+    const placements: PlacePhotoPlacement[] = current.map((p, idx) => ({
+      coPhoto: p.coPhoto,
+      type: p.type,
+      order: idx,
+    }));
+
+    this.photoErrorCode.set(null);
+    this.uploading.set(true);
+    try {
+      await this.api.replacePlacePhotos(place.coPlace, placements);
+      this.photos.set(current.map((p, idx) => ({ ...p, order: idx })));
+    } catch (error) {
+      this.photoErrorCode.set(apiErrorCode(error));
+    } finally {
+      this.uploading.set(false);
+    }
+  }
+
+  /**
+   * Assigns cover status to an existing photo and replaces the set via PUT without re-uploading.
+   */
+  protected async makeCover(photo: PlacePhoto): Promise<void> {
+    const place = this.editing();
+    if (!place || this.uploading() || photo.type === 'COVER') return;
+
+    const updated = this.photos().map((p) => {
+      if (p.coPhoto === photo.coPhoto) {
+        return { ...p, type: 'COVER' as const };
+      }
+      if (p.type === 'COVER') {
+        return { ...p, type: 'GALLERY' as const };
+      }
+      return p;
+    });
+
+    const placements: PlacePhotoPlacement[] = updated.map((p, idx) => ({
+      coPhoto: p.coPhoto,
+      type: p.type,
+      order: p.order,
+    }));
+
+    this.photoErrorCode.set(null);
+    this.uploading.set(true);
+    try {
+      await this.api.replacePlacePhotos(place.coPlace, placements);
+      this.photos.set(updated);
     } catch (error) {
       this.photoErrorCode.set(apiErrorCode(error));
     } finally {

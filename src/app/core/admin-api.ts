@@ -42,6 +42,13 @@ export interface PlacePhoto {
   order: number;
 }
 
+/** One image in a replace-the-gallery request, without a URL. The bytes never travel again. */
+export interface PlacePhotoPlacement {
+  coPhoto: string;
+  type: 'COVER' | 'GALLERY';
+  order: number;
+}
+
 /** One dish. `price` needs a currency: a number without one means nothing. */
 export interface PlaceMenuItem {
   name: string;
@@ -399,6 +406,19 @@ export class AdminApi {
     await firstValueFrom(
       this.http.delete<void>(
         `${this.baseUrl}/admin/places/${encodeURIComponent(coPlace)}/photos/${encodeURIComponent(coPhoto)}`,
+      ),
+    );
+  }
+
+  /**
+   * Replaces the live gallery in one transaction without re-uploading bytes.
+   * Listed photos take their given type and order; omitted live photos are retired logically.
+   */
+  async replacePlacePhotos(coPlace: string, photos: PlacePhotoPlacement[]): Promise<void> {
+    await firstValueFrom(
+      this.http.put<void>(
+        `${this.baseUrl}/admin/places/${encodeURIComponent(coPlace)}/photos`,
+        { photos },
       ),
     );
   }

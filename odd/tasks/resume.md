@@ -16,8 +16,7 @@ Every screen reads the real API — the last mock store was deleted with the pla
 | My account | profile, email change |
 
 Base components: `app-data-table` and `app-dialog-shell` in `src/app/shared/`. No panel screen draws its
-own table. Contract pinned at `0aa2e7c3` and verified by the `contract` CI job. The API's `dev` later moved to
-`201daf8`, documentation only, so the pin remains valid until a commit that touches `api/openapi.yaml`.
+own table. Contract pinned at `23fc244` and verified by the `contract` CI job.
 
 ## How to work on it
 
@@ -27,24 +26,19 @@ id-field rule for forms, and the per-domain traps that already cost a bug.
 
 ## Open, and what each one waits on
 
-1. **`PUT /v1/admin/places/{coPlace}/photos`** — reordering the gallery without re-uploading. Accepted by
-   the API session and **registered as L20 in their change record, not built**: `{photos: [{coPhoto, type,
-   order}]}` → `204`, full-set replacement, `422 field: photos` when a `coPhoto` does not belong to the
-   place. It is the first item on their list when work resumes. The cover has a working alternative
-   (upload another `COVER`); ordering does not, which is why this is not cosmetic.
-2. **Photo storage for production** — the human's decision. A Docker volume for dev; S3 or equivalent
+1. **Photo storage for production** — the human's decision. A Docker volume for dev; S3 or equivalent
    before any release, because a volume is a development answer.
-3. **Plan itinerary, read-only** — agreed shape (`PlanPlace`, `plan.moderate`, no writes), deliberately not
+2. **Plan itinerary, read-only** — agreed shape (`PlanPlace`, `plan.moderate`, no writes), deliberately not
    built because this version does not need it.
-4. **Menus and Routes modules** — no endpoints exist; both stay `soon` in the navigation.
-5. **Independent verification of the theme commits** (`8ac7519`, `4acaf09`, `9346e6a`, `cfa9485`) — the
+3. **Menus and Routes modules** — no endpoints exist; both stay `soon` in the navigation.
+4. **Independent verification of the theme commits** (`8ac7519`, `4acaf09`, `9346e6a`, `cfa9485`) — the
    human deferred it. The debt is declared in the description of PR #6. CI covers compilation, types and
    behaviour; it cannot see appearance.
 
 ## Verification state at the pause
 
 - `tsc --noEmit` for `tsconfig.app.json` and `tsconfig.spec.json`: clean
-- `ng test admin`: 147 tests / 28 files
+- `ng test admin`: 151 tests / 28 files
 - `ng build`: green
 
 Nothing is half-done: every committed change has its tests and its documentation where they belong.

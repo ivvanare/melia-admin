@@ -89,6 +89,7 @@ describe('Places', () => {
   const replacePlaceMenu = vi.fn();
   const uploadPlacePhoto = vi.fn();
   const deletePlacePhoto = vi.fn();
+  const replacePlacePhotos = vi.fn();
   const photoUrl = vi.fn((path: string) => `http://api.test${path}`);
 
   const ATTRIBUTES = [
@@ -128,6 +129,7 @@ describe('Places', () => {
       order: 0,
     });
     deletePlacePhoto.mockReset().mockResolvedValue(undefined);
+    replacePlacePhotos.mockReset().mockResolvedValue(undefined);
     photoUrl.mockClear();
 
     TestBed.configureTestingModule({
@@ -155,6 +157,7 @@ describe('Places', () => {
             replacePlaceMenu,
             uploadPlacePhoto,
             deletePlacePhoto,
+            replacePlacePhotos,
             photoUrl,
           },
         },
@@ -245,6 +248,7 @@ describe('Places', () => {
             replacePlaceMenu,
             uploadPlacePhoto,
             deletePlacePhoto,
+            replacePlacePhotos,
             photoUrl,
           },
         },
@@ -513,6 +517,101 @@ describe('Places', () => {
     expect(uploadPlacePhoto).toHaveBeenCalledWith('pl-1', file, 'GALLERY', 0);
     expect(deletePlacePhoto).toHaveBeenCalledWith('pl-1', 'ph2');
     expect(inDialog('.thumb')).toHaveLength(0);
+  });
+
+  it('reorders gallery photos with PUT /v1/admin/places/{coPlace}/photos', async () => {
+    getAdminPlace.mockResolvedValue({
+      ...PLACES[0],
+      rating: null,
+      schedules: [],
+      attributes: [],
+      menus: [],
+      photos: [
+        { coPhoto: 'p1', url: '/media/p1.jpg', type: 'COVER', order: 0 },
+        { coPhoto: 'p2', url: '/media/p2.jpg', type: 'GALLERY', order: 1 },
+        { coPhoto: 'p3', url: '/media/p3.jpg', type: 'GALLERY', order: 2 },
+      ],
+    });
+    const { element, fixture } = await render();
+    await openFirst(element, fixture);
+    await tick();
+    fixture.detectChanges();
+
+    const thumbs = inDialog('.thumb');
+    expect(thumbs).toHaveLength(3);
+
+    // Click "Move right" on the second photo (index 1: p2)
+    const moveRight = inDialog<HTMLButtonElement>('button[aria-label="Move right"]')[1]!;
+    moveRight.click();
+    await tick();
+    await tick();
+    fixture.detectChanges();
+
+    expect(replacePlacePhotos).toHaveBeenCalledWith('pl-1', [
+      { coPhoto: 'p1', type: 'COVER', order: 0 },
+      { coPhoto: 'p3', type: 'GALLERY', order: 1 },
+      { coPhoto: 'p2', type: 'GALLERY', order: 2 },
+    ]);
+  });
+
+  it('promotes a gallery photo to cover with PUT /v1/admin/places/{coPlace}/photos', async () => {
+    getAdminPlace.mockResolvedValue({
+      ...PLACES[0],
+      rating: null,
+      schedules: [],
+      attributes: [],
+      menus: [],
+      photos: [
+        { coPhoto: 'p1', url: '/media/p1.jpg', type: 'COVER', order: 0 },
+        { coPhoto: 'p2', url: '/media/p2.jpg', type: 'GALLERY', order: 1 },
+      ],
+    });
+    const { element, fixture } = await render();
+    await openFirst(element, fixture);
+    await tick();
+    fixture.detectChanges();
+
+    // Click "Make cover" on the second photo
+    const makeCoverBtn = inDialog<HTMLButtonElement>('.cover-btn')[0]!;
+    expect(makeCoverBtn.textContent?.trim()).toBe('Make cover');
+    makeCoverBtn.click();
+    await tick();
+    await tick();
+    fixture.detectChanges();
+
+    expect(replacePlacePhotos).toHaveBeenCalledWith('pl-1', [
+      { coPhoto: 'p1', type: 'GALLERY', order: 0 },
+      { coPhoto: 'p2', type: 'COVER', order: 1 },
+    ]);
+  });
+
+  it('shows error if replacing photos fails', async () => {
+    getAdminPlace.mockResolvedValue({
+      ...PLACES[0],
+      rating: null,
+      schedules: [],
+      attributes: [],
+      menus: [],
+      photos: [
+        { coPhoto: 'p1', url: '/media/p1.jpg', type: 'COVER', order: 0 },
+        { coPhoto: 'p2', url: '/media/p2.jpg', type: 'GALLERY', order: 1 },
+      ],
+    });
+    replacePlacePhotos.mockRejectedValue(
+      new HttpErrorResponse({ status: 422, error: { error: { code: 'validation_failed' } } }),
+    );
+    const { element, fixture } = await render();
+    await openFirst(element, fixture);
+    await tick();
+    fixture.detectChanges();
+
+    const makeCoverBtn = inDialog<HTMLButtonElement>('.cover-btn')[0]!;
+    makeCoverBtn.click();
+    await tick();
+    await tick();
+    fixture.detectChanges();
+
+    expect(inDialog<HTMLElement>('[role="alert"]')[0]!.textContent).toContain('validation_failed');
   });
 
   it('confirms before retiring a place, and only offers it with place.delete', async () => {

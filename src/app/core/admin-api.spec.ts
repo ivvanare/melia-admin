@@ -78,4 +78,23 @@ describe('AdminApi', () => {
     req.flush({ data: [], page: 1, limit: 20, total: 0 });
     await pending;
   });
+
+  it('replaces the gallery with a PUT carrying the placements', async () => {
+    const pending = api.replacePlacePhotos('pl-1', [
+      { coPhoto: 'p1', type: 'COVER', order: 0 },
+      { coPhoto: 'p2', type: 'GALLERY', order: 1 },
+    ]);
+    const req = http.expectOne(`${API}/admin/places/pl-1/photos`);
+
+    expect(req.request.method).toBe('PUT');
+    expect(req.request.body).toEqual({
+      photos: [
+        { coPhoto: 'p1', type: 'COVER', order: 0 },
+        { coPhoto: 'p2', type: 'GALLERY', order: 1 },
+      ],
+    });
+
+    req.flush(null, { status: 204, statusText: 'No Content' });
+    await expect(pending).resolves.toBeUndefined();
+  });
 });
