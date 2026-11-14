@@ -236,6 +236,14 @@ export class Places {
 
   protected readonly editorOpen = signal(false);
   protected readonly editing = signal<AdminPlace | null>(null);
+  protected readonly dialogLead = computed(() => {
+    const place = this.editing();
+    if (!place) return 'A new place in the catalogue.';
+    const rating = place.rating
+      ? ` · ★ ${place.rating.average.toFixed(1)} (${place.rating.count} ${place.rating.count === 1 ? 'review' : 'reviews'})`
+      : '';
+    return `${place.coPlace}${rating}`;
+  });
   protected readonly draft = signal<Draft>(emptyDraft());
   protected readonly errors = signal<readonly string[]>([]);
   protected readonly saving = signal(false);
@@ -371,6 +379,7 @@ export class Places {
     this.schedulesLoading.set(true);
     try {
       const place = await this.api.getAdminPlace(coPlace);
+      this.editing.set(place);
       this.week.set(weekFrom(place.schedules));
       this.draftCodes.set(place.attributes);
       this.menus.set(place.menus);

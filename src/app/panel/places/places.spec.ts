@@ -204,6 +204,22 @@ describe('Places', () => {
     fixture.detectChanges();
   }
 
+  it('displays published rating in the dialog lead when detail carries one', async () => {
+    getAdminPlace.mockResolvedValueOnce({
+      ...PLACES[0],
+      rating: { average: 4.5, count: 12 },
+      schedules: [],
+      attributes: [],
+      menus: [],
+      photos: [],
+    });
+    const { element, fixture } = await render();
+    await openFirst(element, fixture);
+
+    const lead = inDialog('.lead')[0];
+    expect(lead?.textContent).toContain('pl-1 · ★ 4.5 (12 reviews)');
+  });
+
   it('renders exactly the rows the server scoped, with their status', async () => {
     const { element } = await render();
 

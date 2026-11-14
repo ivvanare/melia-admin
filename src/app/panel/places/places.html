@@ -162,7 +162,7 @@
   >
     <ng-container *nzModalContent>
       <app-dialog-shell
-        [lead]="editing() ? (editing()?.coPlace ?? '') : 'A new place in the catalogue.'"
+        [lead]="dialogLead()"
         [errors]="errors()"
       >
         <div slot="left" class="col">

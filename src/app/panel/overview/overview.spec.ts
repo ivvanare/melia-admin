@@ -87,8 +87,7 @@ describe('Overview', () => {
     // The module catalogue lists what this session may open. Places is keyed on
     // `place.update`, the code an OWNER holds, so the fixture carries it too.
     expect(text).toContain('Places');
-    // Its screen runs on an in-memory store until the API exists, and says so.
-    expect(text).toContain('Mock data');
+    expect(text).not.toContain('Mock data');
   });
 
   it('shows the API error code, never the message, when a total cannot load', async () => {
