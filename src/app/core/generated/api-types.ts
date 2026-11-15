@@ -529,6 +529,36 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/realtime/auth": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sign a private channel subscription
+         * @description Soketi, the broker, speaks the Pusher protocol. Plans publish on a **private** channel,
+         *     `private-plan-<coRoute>`, so a client cannot subscribe without this API's signature: a
+         *     public channel would let anyone holding a route id watch a private plan's activity.
+         *
+         *     The decision is the plan's own visibility door, not a second copy of it. A member may
+         *     watch. A `PUBLIC` plan may be watched by any authenticated account. A `PRIVATE` plan
+         *     answers `404` to everyone else, exactly like the plan's reads, so it never confirms that
+         *     it exists.
+         *
+         *     The answer is the `auth` string the client hands to Soketi unchanged. It is present only
+         *     when the broker is configured; otherwise the route is not registered at all.
+         */
+        post: operations["authorizeSubscription"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admin/places/{coPlace}/menu": {
         parameters: {
             query?: never;
@@ -1308,6 +1338,77 @@ export interface paths {
          */
         get: operations["listRoles"];
         put?: never;
+        /**
+         * Create a role
+         * @description Requires `role.manage` — the permission the seeds created for exactly this and that had no
+         *     route until now. `SUPERADMIN` holds it alone; `ADMIN` is seeded without it on purpose.
+         *
+         *     The name is trimmed, non-empty, at most 60 characters and unique among live roles: sending
+         *     one that exists is `422` with field `name` and code `duplicate`. A permission code the
+         *     catalogue does not carry is `422` with field `permissions` and code `unknown`, never
+         *     silently dropped.
+         */
+        post: operations["createRole"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/roles/{coRole}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * One role with its permission codes
+         * @description Requires `role.manage`.
+         */
+        get: operations["getRole"];
+        put?: never;
+        post?: never;
+        /**
+         * Retire a role
+         * @description Requires `role.manage`. Logical: the row stays and the capabilities stop granting on the
+         *     next request, because access resolution filters retired roles.
+         *
+         *     A role users still hold is **not** deleted: the answer is `409 role_in_use` with the count
+         *     in `details`, so a human moves those users before anyone loses access. `SUPERADMIN` is
+         *     `409 role_protected`.
+         */
+        delete: operations["retireRole"];
+        options?: never;
+        head?: never;
+        /**
+         * Rename, redescription or deactivate a role
+         * @description Requires `role.manage`. Partial: an omitted field is left alone.
+         *
+         *     `SUPERADMIN` cannot be renamed, and that is a `409` with code `role_protected`: whoever
+         *     edits roles could otherwise remove the name the system protects itself by.
+         */
+        patch: operations["updateRole"];
+        trace?: never;
+    };
+    "/v1/admin/roles/{coRole}/permissions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Replace the permission set of a role
+         * @description Requires `role.manage`. The body is the whole set, replaced in one transaction: a
+         *     half-applied composition is a role that grants something nobody chose.
+         *
+         *     An unknown code is `422` with field `permissions`. `SUPERADMIN` must keep `role.manage`;
+         *     a request that strips it is `409 role_protected`, because it removes the last way back
+         *     into role management.
+         */
+        put: operations["replaceRolePermissions"];
         post?: never;
         delete?: never;
         options?: never;
@@ -1554,6 +1655,11 @@ export interface components {
             type: "COVER" | "GALLERY";
             order: number;
         };
+        /** @description The signature the client hands to Soketi unchanged. */
+        RealtimeAuth: {
+            /** @example app-key:2fb87413a2f3ac25d438cb7b0f5a1f25b35d168267da5ff71ba099d35ef612bb */
+            auth: string;
+        };
         /** @description One image in a replace-the-gallery request, without a URL. The bytes never travel again. */
         PlacePhotoPlacement: {
             /** Format: uuid */
@@ -1774,6 +1880,23 @@ export interface components {
             /** @enum {string} */
             status: "ACTIVE" | "INACTIVE";
             permissions?: string[];
+        };
+        RoleInput: {
+            /** @example OPERADOR */
+            name: string;
+            description?: string | null;
+            /** @description Permission codes from GET /v1/admin/permissions. */
+            permissions?: string[];
+        };
+        RoleUpdate: {
+            name?: string;
+            description?: string | null;
+            /** @enum {string} */
+            status?: "ACTIVE" | "INACTIVE";
+        };
+        RolePermissions: {
+            /** @description The whole set; an empty array leaves the role without permissions. */
+            codes: string[];
         };
         Permission: {
             /** Format: uuid */
@@ -2800,6 +2923,45 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    authorizeSubscription: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * @description The id Soketi gave this connection, e.g. 123.456.
+                     * @example 123.456
+                     */
+                    socketId: string;
+                    /**
+                     * @description Must be private-plan-<coRoute>.
+                     * @example private-plan-0b1c2d3e-0000-4000-8000-000000000004
+                     */
+                    channel: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Signed. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RealtimeAuth"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationError"];
         };
     };
     getPlaceMenu: {
@@ -4055,6 +4217,145 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+        };
+    };
+    createRole: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RoleInput"];
+            };
+        };
+        responses: {
+            /** @description Created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Role"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    getRole: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                coRole: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The role. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Role"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    retireRole: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                coRole: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Retired. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    updateRole: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                coRole: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RoleUpdate"];
+            };
+        };
+        responses: {
+            /** @description Updated. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Role"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    replaceRolePermissions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                coRole: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RolePermissions"];
+            };
+        };
+        responses: {
+            /** @description Replaced. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["ValidationError"];
         };
     };
     listPermissions: {
