@@ -1,7 +1,13 @@
 import { DOCUMENT } from '@angular/common';
-import { Component, computed, effect, inject } from '@angular/core';
+import { Component, computed, effect, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import {
+  NavigationEnd,
+  Router,
+  RouterLink,
+  RouterLinkActive,
+  RouterOutlet,
+} from '@angular/router';
 import { filter, map, startWith } from 'rxjs';
 import { AuthService } from '../core/auth.service';
 import { ThemeService } from '../core/theme.service';
@@ -17,8 +23,8 @@ import { NzIconService } from 'ng-zorro-antd/icon';
 import { ICON_PATHS, PANEL_GROUPS, PANEL_MODULES } from './panel-nav';
 
 /**
- * Chrome for every `/panel` route: the sidebar built from the module catalogue
- * filtered by `permissions`, the top bar, and the outlet the screens render in.
+ * Chrome for every `/panel` route: the collapsible sidebar built from the module catalogue
+ * filtered by `permissions`, the top bar with toggles, and the outlet the screens render in.
  *
  * The navigation is data-driven for one reason: a module can never be listed
  * without its route, or shown to a session that cannot open it (S8).
@@ -34,6 +40,15 @@ export class PanelLayout {
   private readonly router = inject(Router);
 
   protected readonly icons = ICON_PATHS;
+
+  /** Sidebar collapsed state, persisted in localStorage when available. */
+  protected readonly isCollapsed = signal<boolean>(
+    typeof localStorage !== 'undefined' &&
+      localStorage.getItem('melzone_sidebar_collapsed') === 'true',
+  );
+
+  /** Mobile off-canvas drawer open state. */
+  protected readonly isMobileOpen = signal<boolean>(false);
 
   /** Catalogue groups with every module this session may not open removed. */
   protected readonly groups = computed(() => {
@@ -56,7 +71,10 @@ export class PanelLayout {
   /** Label of the module currently open, for the breadcrumb. */
   protected readonly currentLabel = computed(() => {
     const url = this.url();
-    return PANEL_MODULES.find((module) => url.startsWith(`/panel/${module.path}`))?.label ?? 'Overview';
+    return (
+      PANEL_MODULES.find((module) => url.startsWith(`/panel/${module.path}`))?.label ??
+      'Overview'
+    );
   });
 
   private readonly document = inject(DOCUMENT);
@@ -72,10 +90,13 @@ export class PanelLayout {
     // entry (not a global import, which cost the landing 570 kB of CSS) and its
     // services are injected here rather than provided in `app.config`, which kept
     // 90 kB of zorro core in the initial bundle.
-    //
-    // The stylesheet follows the theme: the dark bundle replaces the light one
-    // rather than layering on top, so only one vendor stylesheet is ever loaded.
     effect(() => this.applyZorroStylesheet(this.theme.isDark()));
+
+    // Close mobile drawer when route changes
+    effect(() => {
+      this.url();
+      this.isMobileOpen.set(false);
+    });
 
     // Only the glyphs the table draws: registering the whole set would pull
     // thousands of paths into the bundle for four carets.
@@ -86,11 +107,38 @@ export class PanelLayout {
     this.i18n.setLocale(en_US);
   }
 
+  protected toggleCollapsed(): void {
+    const next = !this.isCollapsed();
+    this.isCollapsed.set(next);
+    if (typeof localStorage !== 'undefined') {
+      try {
+        localStorage.setItem('melzone_sidebar_collapsed', String(next));
+      } catch {
+        // storage disabled or quota exceeded
+      }
+    }
+  }
+
+  protected toggleSidebar(): void {
+    if (typeof window !== 'undefined' && window.innerWidth <= 900) {
+      this.isMobileOpen.update((v) => !v);
+    } else {
+      this.toggleCollapsed();
+    }
+  }
+
+  protected closeMobile(): void {
+    this.isMobileOpen.set(false);
+  }
+
   protected toggleTheme(): void {
     this.theme.toggle();
   }
 
   protected startTour(): void {
+    if (this.isCollapsed()) {
+      this.toggleCollapsed();
+    }
     this.tour.startPanelTour();
   }
 
@@ -104,7 +152,9 @@ export class PanelLayout {
       .join('');
   });
 
-  protected readonly roleLabel = computed(() => this.auth.user()?.roles.join(', ') ?? 'no role');
+  protected readonly roleLabel = computed(
+    () => this.auth.user()?.roles.join(', ') ?? 'no role',
+  );
 
   /** First call creates the link; later theme changes only repoint it. */
   private applyZorroStylesheet(dark: boolean): void {

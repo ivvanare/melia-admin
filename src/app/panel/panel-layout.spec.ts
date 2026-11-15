@@ -14,7 +14,14 @@ const OPERATOR: Me = {
   status: 'ACTIVE',
   email_verified_at: '2026-01-01T00:00:00Z',
   roles: ['SUPERADMIN'],
-  permissions: ['admin.access', 'place.update', 'place.manage_all', 'review.moderate', 'plan.moderate', 'invitation.moderate'],
+  permissions: [
+    'admin.access',
+    'place.update',
+    'place.manage_all',
+    'review.moderate',
+    'plan.moderate',
+    'invitation.moderate',
+  ],
   created_at: '2026-01-01T00:00:00Z',
 };
 
@@ -87,5 +94,28 @@ describe('PanelLayout', () => {
     tourBtn?.click();
 
     expect(startPanelTour).toHaveBeenCalledOnce();
+  });
+
+  it('toggles sidebar minimization when collapse button or topbar toggle is clicked', () => {
+    const fixture = TestBed.createComponent(PanelLayout);
+    fixture.detectChanges();
+    const element = fixture.nativeElement as HTMLElement;
+    const shell = element.querySelector('.shell') as HTMLElement;
+
+    expect(shell.classList.contains('collapsed')).toBe(false);
+
+    const collapseBtn = element.querySelector('.collapse-btn') as HTMLButtonElement | null;
+    expect(collapseBtn).not.toBeNull();
+    collapseBtn?.click();
+    fixture.detectChanges();
+
+    expect(shell.classList.contains('collapsed')).toBe(true);
+
+    const topbarToggle = element.querySelector('.menu-toggle-btn') as HTMLButtonElement | null;
+    expect(topbarToggle).not.toBeNull();
+    topbarToggle?.click();
+    fixture.detectChanges();
+
+    expect(shell.classList.contains('collapsed')).toBe(false);
   });
 });
