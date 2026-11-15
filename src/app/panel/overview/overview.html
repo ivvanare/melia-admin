@@ -2,7 +2,7 @@
   <header class="pagehead">
     <div>
       <h1 id="overview-title">Welcome back, {{ greetingName() }}</h1>
-      <p>Signed in as {{ auth.user()?.roles.join(', ') || 'no role' }}. Everything below is live data.</p>
+      <p>Signed in as {{ auth.user()?.roles?.join(', ') || 'no role' }}. Everything below is live data.</p>
     </div>
     <button type="button" class="btn secondary" (click)="load()" [disabled]="loading()">
       {{ loading() ? 'Refreshing…' : 'Refresh' }}
@@ -19,91 +19,286 @@
   }
 
   <div class="metrics">
+    @if (canManagePlaces()) {
+      <article class="metric">
+        <div class="metric-top">
+          <span class="label">Places</span>
+          <span class="metric-icon" aria-hidden="true">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+              <path [attr.d]="icons.places" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </span>
+        </div>
+        <p class="value">{{ placesTotal() ?? '—' }}</p>
+        <a class="link" routerLink="/panel/places">Manage catalog</a>
+      </article>
+    }
+
+    @if (canModerateReviews()) {
+      <article class="metric">
+        <div class="metric-top">
+          <span class="label">Reviews</span>
+          <span class="metric-icon" aria-hidden="true">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+              <path [attr.d]="icons.reviews" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </span>
+        </div>
+        <p class="value">{{ reviewsTotal() ?? '—' }}</p>
+        <a class="link" routerLink="/panel/reviews">Moderate reviews</a>
+      </article>
+    }
+
+    @if (canModeratePlans()) {
+      <article class="metric">
+        <div class="metric-top">
+          <span class="label">Plans</span>
+          <span class="metric-icon" aria-hidden="true">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+              <path [attr.d]="icons.plans" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </span>
+        </div>
+        <p class="value">{{ plansTotal() ?? '—' }}</p>
+        <a class="link" routerLink="/panel/plans">Active plans</a>
+      </article>
+    }
+
+    @if (canReadUsers()) {
+      <article class="metric">
+        <div class="metric-top">
+          <span class="label">Users</span>
+          <span class="metric-icon" aria-hidden="true">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+              <path [attr.d]="icons.users" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </span>
+        </div>
+        <p class="value">{{ usersTotal() ?? '—' }}</p>
+        <a class="link" routerLink="/panel/users">Search and assign roles</a>
+      </article>
+    }
+
+    @if (canManageRoles()) {
+      <article class="metric">
+        <div class="metric-top">
+          <span class="label">Roles</span>
+          <span class="metric-icon" aria-hidden="true">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+              <path [attr.d]="icons.roles" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </span>
+        </div>
+        <p class="value">{{ rolesTotal() ?? '—' }}</p>
+        <a class="link" routerLink="/panel/roles">See what each grants</a>
+      </article>
+      <article class="metric">
+        <div class="metric-top">
+          <span class="label">Permissions</span>
+          <span class="metric-icon" aria-hidden="true">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+              <path [attr.d]="icons.roles" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </span>
+        </div>
+        <p class="value">{{ permissionsTotal() ?? '—' }}</p>
+        <a class="link" routerLink="/panel/roles">Read the catalogue</a>
+      </article>
+    }
+
     <article class="metric">
-      <p class="label">Users</p>
-      <p class="value">{{ usersTotal() ?? '—' }}</p>
-      <a class="link" routerLink="/panel/users">Search and assign roles</a>
-    </article>
-    <article class="metric">
-      <p class="label">Roles</p>
-      <p class="value">{{ rolesTotal() ?? '—' }}</p>
-      <a class="link" routerLink="/panel/roles">See what each grants</a>
-    </article>
-    <article class="metric">
-      <p class="label">Permissions</p>
-      <p class="value">{{ permissionsTotal() ?? '—' }}</p>
-      <a class="link" routerLink="/panel/roles">Read the catalogue</a>
-    </article>
-    <article class="metric">
-      <p class="label">Audit events</p>
+      <div class="metric-top">
+        <span class="label">Audit events</span>
+        <span class="metric-icon" aria-hidden="true">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+            <path [attr.d]="icons.audit" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </span>
+      </div>
       <p class="value">{{ eventsTotal() ?? '—' }}</p>
       <a class="link" routerLink="/panel/audit">Open the log</a>
     </article>
   </div>
 
   <div class="columns">
-    <section class="panel" aria-labelledby="activity-title">
-      <header>
-        <h2 id="activity-title">Recent activity</h2>
-        <a class="link" routerLink="/panel/audit">Full audit log</a>
-      </header>
-
-      @if (loading()) {
-        <p class="empty">Loading the log…</p>
-      } @else if (!recent().length) {
-        <p class="empty">Nothing recorded yet.</p>
-      } @else {
-        <ul class="events">
-          @for (event of recent(); track event.id) {
-            <li>
-              <span class="tag" [class.danger]="event.event.includes('failed')" [class.info]="!event.event.includes('failed')">
-                {{ event.event }}
-              </span>
-              <span class="where">
-                {{ event.actor_user_id ? 'actor ' + event.actor_user_id.slice(0, 8) : 'system' }}
-                @if (event.country) {
-                  · {{ event.country }}
-                }
-              </span>
-              <time class="when" [attr.datetime]="event.created_at">{{ formatDateTime(event.created_at) }}</time>
-            </li>
-          }
-        </ul>
-      }
-    </section>
-
-    <section class="panel" aria-labelledby="modules-title">
-      <header>
-        <h2 id="modules-title">Modules</h2>
-        <p class="hint">{{ modules().length }} visible to this session</p>
-      </header>
-      <div class="modules">
-        @for (module of modules(); track module.path) {
-          <a class="module" [routerLink]="['/panel', module.path]">
-            <span class="top">
-              <span class="ic" [class.soon]="module.status === 'soon'" aria-hidden="true">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
-                  <path
-                    [attr.d]="icons[module.icon]"
-                    stroke="currentColor"
-                    stroke-width="2.1"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  />
+    <div class="col-main">
+      @if (canModerateReviews()) {
+        <section class="panel" aria-labelledby="reviews-title">
+          <header>
+            <div class="panel-head-title">
+              <span class="panel-icon" aria-hidden="true">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                  <path [attr.d]="icons.reviews" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
               </span>
-              <h3>{{ module.label }}</h3>
-              @if (module.status === 'soon') {
-                <span class="badge">Coming soon</span>
-              } @else if (module.status === 'mock') {
-                <!-- The screen works, the backend does not exist yet: saying so is the point. -->
-                <span class="badge">Mock data</span>
+              <h2 id="reviews-title">Recent customer reviews</h2>
+            </div>
+            <a class="link" routerLink="/panel/reviews">Moderate all</a>
+          </header>
+
+          @if (loading()) {
+            <p class="empty">Loading reviews…</p>
+          } @else if (!recentReviews().length) {
+            <p class="empty">No customer reviews recorded yet.</p>
+          } @else {
+            <ul class="preview-list">
+              @for (review of recentReviews(); track review.coReview) {
+                <li class="preview-item">
+                  <div class="item-head">
+                    <span class="stars" [title]="review.rating + ' stars'">{{ starRating(review.rating) }}</span>
+                    <strong class="item-title">{{ review.place?.title || 'Unknown venue' }}</strong>
+                    <span class="badge" [class.badge-active]="review.status === 'ACTIVE'" [class.badge-moderated]="review.status === 'MODERATED'">
+                      {{ review.status }}
+                    </span>
+                  </div>
+                  <p class="item-snippet">{{ review.comment || 'No written commentary provided' }}</p>
+                  <div class="item-foot">
+                    <span class="item-meta">By {{ review.author.name || 'Anonymous' }} · {{ formatDateTime(review.createdAt) }}</span>
+                    <a class="link" [routerLink]="['/panel/reviews']" [queryParams]="{ placeId: review.coPlace }">Inspect</a>
+                  </div>
+                </li>
               }
+            </ul>
+          }
+        </section>
+      }
+
+      @if (canManagePlaces()) {
+        <section class="panel" aria-labelledby="venues-title">
+          <header>
+            <div class="panel-head-title">
+              <span class="panel-icon" aria-hidden="true">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                  <path [attr.d]="icons.places" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </span>
+              <h2 id="venues-title">Registered venues</h2>
+            </div>
+            <a class="link" routerLink="/panel/places">View all places</a>
+          </header>
+
+          @if (loading()) {
+            <p class="empty">Loading venues…</p>
+          } @else if (!recentPlaces().length) {
+            <p class="empty">No venues recorded yet.</p>
+          } @else {
+            <ul class="preview-list">
+              @for (place of recentPlaces(); track place.coPlace) {
+                <li class="preview-item">
+                  <div class="item-head">
+                    <strong class="item-title">{{ place.title }}</strong>
+                    <span class="badge-cat">{{ place.category.name }}</span>
+                    <span class="badge" [class.badge-active]="place.status === 'ACTIVE'" [class.badge-inactive]="place.status === 'INACTIVE'">
+                      {{ place.status }}
+                    </span>
+                  </div>
+                  <div class="item-foot">
+                    <span class="item-meta">{{ placeLocation(place) }} · <span class="rating-pill">{{ placeRating(place) }}</span></span>
+                    <a class="link" routerLink="/panel/places">Manage</a>
+                  </div>
+                </li>
+              }
+            </ul>
+          }
+        </section>
+      }
+
+      <section class="panel" aria-labelledby="activity-title">
+        <header>
+          <div class="panel-head-title">
+            <span class="panel-icon" aria-hidden="true">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                <path [attr.d]="icons.audit" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
             </span>
-            <p>{{ module.description }}</p>
-          </a>
+            <h2 id="activity-title">Recent audit activity</h2>
+          </div>
+          <a class="link" routerLink="/panel/audit">Full audit log</a>
+        </header>
+
+        @if (loading()) {
+          <p class="empty">Loading the log…</p>
+        } @else if (!recent().length) {
+          <p class="empty">Nothing recorded yet.</p>
+        } @else {
+          <ul class="events">
+            @for (event of recent(); track event.id) {
+              <li>
+                <span class="tag" [class.danger]="event.event.includes('failed')" [class.info]="!event.event.includes('failed')">
+                  {{ event.event }}
+                </span>
+                <span class="where">
+                  {{ event.actor_user_id ? 'actor ' + event.actor_user_id.slice(0, 8) : 'system' }}
+                  @if (event.country) {
+                    · {{ event.country }}
+                  }
+                </span>
+                <time class="when" [attr.datetime]="event.created_at">{{ formatDateTime(event.created_at) }}</time>
+              </li>
+            }
+          </ul>
         }
-      </div>
-    </section>
+      </section>
+    </div>
+
+    <div class="col-side">
+      <section class="panel session-card" aria-labelledby="session-title">
+        <header>
+          <h2 id="session-title">Active session</h2>
+          <span class="live-dot" title="Authenticated session">Live</span>
+        </header>
+        <div class="session-body">
+          <div class="operator-profile">
+            <div class="operator-avatar">{{ operatorInitials() }}</div>
+            <div class="operator-details">
+              <div class="operator-name">{{ auth.user()?.name || 'Administrator' }}</div>
+              <div class="operator-email">{{ auth.user()?.email }}</div>
+            </div>
+          </div>
+          <div class="session-tags">
+            @for (role of auth.user()?.roles || []; track role) {
+              <span class="role-chip">{{ role }}</span>
+            }
+            <span class="perms-chip">{{ auth.permissions().length }} permissions granted</span>
+          </div>
+          <div class="session-footer">
+            <a class="link" routerLink="/panel/account">Account settings & email</a>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" aria-labelledby="modules-title">
+        <header>
+          <h2 id="modules-title">Available modules</h2>
+          <p class="hint">{{ modules().length }} accessible</p>
+        </header>
+        <div class="modules">
+          @for (module of modules(); track module.path) {
+            <a class="module" [routerLink]="['/panel', module.path]">
+              <span class="top">
+                <span class="ic" [class.soon]="module.status === 'soon'" aria-hidden="true">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+                    <path
+                      [attr.d]="icons[module.icon]"
+                      stroke="currentColor"
+                      stroke-width="2.1"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                </span>
+                <h3>{{ module.label }}</h3>
+                @if (module.status === 'soon') {
+                  <span class="badge">Coming soon</span>
+                } @else if (module.status === 'mock') {
+                  <span class="badge">Mock data</span>
+                }
+              </span>
+              <p>{{ module.description }}</p>
+            </a>
+          }
+        </div>
+      </section>
+    </div>
   </div>
 </section>
