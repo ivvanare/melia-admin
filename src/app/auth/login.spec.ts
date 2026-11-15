@@ -4,7 +4,7 @@ import { type ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap, provideRouter, Router } from '@angular/router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { API_URL } from '../core/api-url.token';
-import type { Me, TokenPairResponse } from '../core/auth.service';
+import { AuthService, type Me, type TokenPairResponse } from '../core/auth.service';
 import { Login } from './login';
 
 const API = 'https://api.test/v1';
@@ -211,5 +211,12 @@ describe('Login', () => {
 
     expect(alertText()).toContain('network_error');
     expect(router.navigateByUrl).not.toHaveBeenCalled();
+  });
+
+  it('redirects to returnUrl when already authenticated on load', () => {
+    const authService = TestBed.inject(AuthService);
+    (authService as unknown as { statusState: { set: (s: string) => void } }).statusState.set('authenticated');
+    create();
+    expect(router.navigateByUrl).toHaveBeenCalledWith('/panel');
   });
 });

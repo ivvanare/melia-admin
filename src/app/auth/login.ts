@@ -52,6 +52,12 @@ export class Login {
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
 
+  constructor() {
+    if (this.auth.status() === 'authenticated') {
+      void this.router.navigateByUrl(this.returnUrl());
+    }
+  }
+
   protected readonly credentials = signal<LoginFormModel>({ email: '', password: '' });
   protected readonly loginForm = form(this.credentials, (schema) => {
     required(schema.email, { message: 'Email is required' });

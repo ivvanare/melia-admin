@@ -15,8 +15,8 @@ import { authGuard } from './core/auth.guard';
 export const routes: Routes = [
   {
     path: '',
-    title: 'melZone — places, menus and routes',
-    loadComponent: () => import('./landing/landing').then((m) => m.Landing),
+    pathMatch: 'full',
+    redirectTo: 'login',
   },
   {
     path: 'login',
