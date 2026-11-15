@@ -1,6 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { computed, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthService, type Me } from '../../core/auth.service';
 import { AdminApi, type AdminPlace } from '../../core/admin-api';
@@ -135,6 +136,7 @@ describe('Places', () => {
     TestBed.configureTestingModule({
       imports: [Places],
       providers: [
+        provideRouter([]),
         {
           provide: AuthService,
           useValue: {
@@ -242,6 +244,7 @@ describe('Places', () => {
     TestBed.configureTestingModule({
       imports: [Places],
       providers: [
+        provideRouter([]),
         {
           provide: AuthService,
           useValue: {
@@ -715,5 +718,12 @@ describe('Places', () => {
     expect(replacePlaceMenu).toHaveBeenCalledWith('pl-1', [
       { name: 'Desayuno', description: null, items: [{ name: 'Empanada', description: null, price: 2.5, currency: 'USD' }] },
     ]);
+  });
+
+  it('renders link to reviews with placeId query parameter', async () => {
+    const { element } = await render();
+    const link = element.querySelector<HTMLAnchorElement>('a[href*="/panel/reviews"]');
+    expect(link).not.toBeNull();
+    expect(link?.getAttribute('href')).toContain('placeId=pl-1');
   });
 });

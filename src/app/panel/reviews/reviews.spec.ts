@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { convertToParamMap, provideRouter, ActivatedRoute } from '@angular/router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AdminApi, type AdminReview } from '../../core/admin-api';
 import { AuthService } from '../../core/auth.service';
@@ -89,6 +90,7 @@ describe('Reviews', () => {
     TestBed.configureTestingModule({
       imports: [Reviews],
       providers: [
+        provideRouter([]),
         { provide: AdminApi, useValue: { listAdminReviews, setReviewStatus, listAdminPlaces, listUsers } },
       ],
     });
@@ -217,6 +219,7 @@ describe('Reviews', () => {
     TestBed.configureTestingModule({
       imports: [Reviews],
       providers: [
+        provideRouter([]),
         {
           provide: AuthService,
           useValue: {
@@ -257,5 +260,47 @@ describe('Reviews', () => {
     // The base table still renders its empty row; what must not exist is a data row.
     expect(element.querySelectorAll('tbody select')).toHaveLength(0);
     expect(element.textContent).toContain('0 reviews');
+  });
+
+  it('opens the review detail modal with full comment and rating', async () => {
+    const { element, fixture } = await render();
+
+    const readBtn = [...element.querySelectorAll('button')].find(
+      (b) => b.textContent?.trim() === 'Read',
+    )!;
+    readBtn.click();
+    fixture.detectChanges();
+    await tick();
+    fixture.detectChanges();
+
+    expect(document.body.textContent).toContain('Review content');
+    expect(document.body.textContent).toContain('Excelente atención y el café impecable.');
+    expect(document.body.textContent).toContain('Arepera Chacao');
+    expect(document.body.textContent).toContain('Ana Rondón');
+    expect(document.body.textContent).toContain('p1');
+  });
+
+  it('initializes placeFilter and authorFilter from route query params when present', async () => {
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      imports: [Reviews],
+      providers: [
+        provideRouter([]),
+        {
+          provide: ActivatedRoute,
+          useValue: {
+            snapshot: {
+              queryParamMap: convertToParamMap({ placeId: 'p1', authorId: 'u1' }),
+            },
+          },
+        },
+        { provide: AdminApi, useValue: { listAdminReviews, setReviewStatus, listAdminPlaces, listUsers } },
+      ],
+    });
+    await render();
+
+    expect(listAdminReviews).toHaveBeenCalledWith(
+      expect.objectContaining({ placeId: 'p1', authorId: 'u1' }),
+    );
   });
 });

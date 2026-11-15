@@ -1,4 +1,5 @@
 import { Component, computed, inject, signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzModalModule } from 'ng-zorro-antd/modal';
 import {
@@ -140,7 +141,7 @@ function draftFrom(place: AdminPlace): Draft {
  */
 @Component({
   selector: 'app-places',
-  imports: [DataTable, DialogShell, NzButtonModule, NzModalModule],
+  imports: [DataTable, DialogShell, NzButtonModule, NzModalModule, RouterLink],
   templateUrl: './places.html',
   styleUrl: './places.css',
 })

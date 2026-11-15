@@ -1,5 +1,6 @@
 <section class="screen">
   <ng-template #rowActions let-row>
+    <button nz-button nzSize="small" type="button" (click)="openDetail(row)">Details</button>
     <button nz-button nzSize="small" type="button" [disabled]="savingId() !== null" (click)="toggleStatus(row)">
       {{ row.status === 'ACTIVE' ? 'Suspend' : 'Reactivate' }}
     </button>
@@ -46,4 +47,84 @@
     <button class="btn secondary" type="button" [disabled]="page() === 1" (click)="previous()">Previous</button>
     <button class="btn secondary" type="button" [disabled]="page() >= pageCount()" (click)="next()">Next</button>
   </div>
+
+  <nz-modal
+    [nzVisible]="detailTarget() !== null"
+    [nzTitle]="detailTarget()?.name ?? 'Plan details'"
+    nzOkText="Close"
+    [nzCancelText]="null"
+    nzWidth="680px"
+    (nzOnOk)="closeDetail()"
+    (nzOnCancel)="closeDetail()"
+  >
+    <ng-container *nzModalContent>
+      @if (detailTarget(); as plan) {
+        <app-dialog-shell [lead]="plan.coRoute">
+          <div slot="left" class="col">
+            <fieldset>
+              <legend>Plan overview</legend>
+              <div class="field">
+                <label>Description</label>
+                <p class="plan-desc">{{ plan.description || 'No description provided.' }}</p>
+              </div>
+
+              <div class="row">
+                <div class="field">
+                  <label>Status</label>
+                  <span [class]="plan.status === 'ACTIVE' ? 'tag ok' : 'tag warn'">{{ plan.status }}</span>
+                </div>
+                <div class="field">
+                  <label>Visibility</label>
+                  <span class="mono">{{ plan.visibility }}</span>
+                </div>
+              </div>
+
+              <div class="row">
+                <div class="field">
+                  <label>Scheduled at</label>
+                  <span class="mono">{{ formatSchedule(plan.scheduledAt) }}</span>
+                </div>
+                <div class="field">
+                  <label>Party size</label>
+                  <span>{{ plan.partySize ? plan.partySize + ' people' : 'Not specified' }}</span>
+                </div>
+              </div>
+            </fieldset>
+          </div>
+
+          <div slot="right" class="col">
+            <fieldset>
+              <legend>Membership & moderation</legend>
+              <div class="field">
+                <label>Members</label>
+                <span class="mono">{{ plan.memberCount }} {{ plan.memberCount === 1 ? 'member' : 'members' }}</span>
+              </div>
+              <div class="field">
+                <label>Owner (User ID)</label>
+                <code class="mono">{{ plan.coUser }}</code>
+              </div>
+              <div class="field">
+                <label>Timestamps</label>
+                <span class="muted font-sm">{{ plan.createdAt.slice(0, 10) }} · updated {{ plan.updatedAt.slice(0, 10) }}</span>
+              </div>
+
+              <div class="moderation-box">
+                <p class="hint">
+                  Suspending a plan hides it from discovery and non-members. The owner and members keep access so their itinerary is preserved.
+                </p>
+                <button
+                  class="btn secondary"
+                  type="button"
+                  [disabled]="savingId() !== null"
+                  (click)="toggleStatus(plan)"
+                >
+                  {{ plan.status === 'ACTIVE' ? 'Suspend this plan' : 'Reactivate plan' }}
+                </button>
+              </div>
+            </fieldset>
+          </div>
+        </app-dialog-shell>
+      }
+    </ng-container>
+  </nz-modal>
 </section>

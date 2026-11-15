@@ -1,1 +1,26 @@
-:host { display: block; }
+:host {
+  display: block;
+}
+
+.plan-desc {
+  font-size: 13px;
+  color: var(--slate);
+  margin: 4px 0 0;
+  white-space: pre-wrap;
+  line-height: 1.45;
+}
+
+.moderation-box {
+  margin-top: 14px;
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-muted);
+  border: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.font-sm {
+  font-size: 12px;
+}

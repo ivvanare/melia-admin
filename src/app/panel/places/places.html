@@ -1,6 +1,7 @@
 <section class="screen">
   <!-- Declared before the table so the actions input sees the reference. -->
   <ng-template #rowActions let-row>
+    <a nz-button nzSize="small" [routerLink]="['/panel/reviews']" [queryParams]="{ placeId: row.coPlace }">Reviews</a>
     <button nz-button nzSize="small" type="button" (click)="openMenu(row)">Menu</button>
     <button nz-button nzSize="small" type="button" (click)="openEditor(row)">Edit record</button>
   </ng-template>
@@ -112,6 +113,12 @@
               <h2>{{ place.title }}</h2>
               <p class="sub">{{ place.category.name }}@if (place.address) { · {{ place.address }} }</p>
 
+              @if (place.rating; as rating) {
+                <a class="rating-badge" [routerLink]="['/panel/reviews']" [queryParams]="{ placeId: place.coPlace }">
+                  ★ {{ rating.average.toFixed(1) }} ({{ rating.count }} {{ rating.count === 1 ? 'review' : 'reviews' }})
+                </a>
+              }
+
               @if (place.description) {
                 <p class="desc">{{ place.description }}</p>
               } @else {
@@ -126,6 +133,7 @@
             <footer>
               <span class="when">{{ updatedLabel(place) }}</span>
               <div class="card-actions">
+                <a class="btn ghost" [routerLink]="['/panel/reviews']" [queryParams]="{ placeId: place.coPlace }">Reviews</a>
                 <button class="btn ghost" type="button" (click)="openMenu(place)">Menu</button>
                 <button class="btn ghost" type="button" (click)="openEditor(place)">Edit record</button>
               </div>

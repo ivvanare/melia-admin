@@ -1,8 +1,10 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzModalModule } from 'ng-zorro-antd/modal';
 import { AdminApi, type AdminPlan, type PlanStatus } from '../../core/admin-api';
 import { apiErrorCode } from '../../core/api-error';
 import { DataTable, type DataTableColumn, type DataTableTagVariant } from '../../shared/data-table/data-table';
+import { DialogShell } from '../../shared/dialog-shell/dialog-shell';
 
 const PAGE_SIZE = 20;
 
@@ -19,7 +21,7 @@ const STATUS_TAG: Record<PlanStatus, DataTableTagVariant> = {
  */
 @Component({
   selector: 'app-plans',
-  imports: [DataTable, NzButtonModule],
+  imports: [DataTable, DialogShell, NzButtonModule, NzModalModule],
   templateUrl: './plans.html',
   styleUrl: './plans.css',
 })
@@ -33,6 +35,7 @@ export class Plans {
   protected readonly errorCode = signal<string | null>(null);
   protected readonly statusFilter = signal('');
   protected readonly savingId = signal<string | null>(null);
+  protected readonly detailTarget = signal<AdminPlan | null>(null);
 
   protected readonly pageCount = computed(() => Math.max(1, Math.ceil(this.total() / PAGE_SIZE)));
 
@@ -103,6 +106,21 @@ export class Plans {
     void this.load();
   }
 
+  protected openDetail(plan: AdminPlan): void {
+    this.detailTarget.set(plan);
+  }
+
+  protected closeDetail(): void {
+    this.detailTarget.set(null);
+  }
+
+  protected formatSchedule(scheduledAt: string | null): string {
+    if (!scheduledAt) return 'Not scheduled';
+    const d = new Date(scheduledAt);
+    if (Number.isNaN(d.getTime())) return scheduledAt;
+    return d.toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
+  }
+
   /** One action, two directions: suspending hides, reactivating restores. */
   protected async toggleStatus(plan: AdminPlan): Promise<void> {
     if (this.savingId() !== null) return;
@@ -110,7 +128,10 @@ export class Plans {
     this.savingId.set(plan.coRoute);
     this.errorCode.set(null);
     try {
-      await this.api.setPlanStatus(plan.coRoute, next);
+      const updated = await this.api.setPlanStatus(plan.coRoute, next);
+      if (this.detailTarget()?.coRoute === plan.coRoute) {
+        this.detailTarget.set(updated);
+      }
       await this.load();
     } catch (error) {
       this.errorCode.set(apiErrorCode(error));

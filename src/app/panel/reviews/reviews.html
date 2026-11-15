@@ -1,19 +1,22 @@
 <section class="screen">
   <!-- Declared before the table so the actions input sees the reference. -->
   <ng-template #rowActions let-row>
-    <label class="inline-status">
-      <span class="sr-only">Status for the review by {{ row.author.name ?? row.author.id }}</span>
-      <select
-        class="status-select"
-        [value]="row.status"
-        [disabled]="savingId() !== null"
-        (change)="changeStatus(row, $any($event.target).value, $any($event.target))"
-      >
-        @for (status of statuses; track status) {
-          <option [value]="status">{{ status }}</option>
-        }
-      </select>
-    </label>
+    <div class="review-actions">
+      <button nz-button nzSize="small" type="button" (click)="openDetail(row)">Read</button>
+      <label class="inline-status">
+        <span class="sr-only">Status for the review by {{ row.author.name ?? row.author.id }}</span>
+        <select
+          class="status-select"
+          [value]="row.status"
+          [disabled]="savingId() !== null"
+          (change)="changeStatus(row, $any($event.target).value, $any($event.target))"
+        >
+          @for (status of statuses; track status) {
+            <option [value]="status">{{ status }}</option>
+          }
+        </select>
+      </label>
+    </div>
   </ng-template>
 
   <div class="pagehead">
@@ -122,4 +125,69 @@
     Moderating changes the status only: the review is not deleted and its author may review that
     place again. This listing also shows rows the public one hides.
   </p>
+
+  <nz-modal
+    [nzVisible]="detailTarget() !== null"
+    [nzTitle]="'Review — ' + (detailTarget()?.place?.title ?? detailTarget()?.coPlace ?? '')"
+    nzOkText="Close"
+    [nzCancelText]="null"
+    nzWidth="640px"
+    (nzOnOk)="closeDetail()"
+    (nzOnCancel)="closeDetail()"
+  >
+    <ng-container *nzModalContent>
+      @if (detailTarget(); as review) {
+        <app-dialog-shell [lead]="review.coReview">
+          <div slot="left" class="col">
+            <fieldset>
+              <legend>Review content</legend>
+              <div class="field">
+                <label>Rating</label>
+                <div class="review-rating">
+                  <span class="stars">{{ starString(review.rating) }}</span>
+                  <span class="mono font-sm">({{ review.rating }}/5)</span>
+                </div>
+              </div>
+              <div class="field">
+                <label>Comment</label>
+                <p class="review-full-comment">{{ review.comment || 'No written comment.' }}</p>
+              </div>
+            </fieldset>
+          </div>
+          <div slot="right" class="col">
+            <fieldset>
+              <legend>Metadata & moderation</legend>
+              <div class="field">
+                <label>Place</label>
+                <strong>{{ review.place?.title ?? 'Unknown place' }}</strong>
+                <code class="mono muted font-sm">{{ review.coPlace }}</code>
+              </div>
+              <div class="field">
+                <label>Author</label>
+                <span>{{ review.author.name || 'Anonymous' }}</span>
+                <code class="mono muted font-sm">{{ review.author.id }}</code>
+              </div>
+              <div class="field">
+                <label>Date</label>
+                <span class="muted font-sm">{{ formatStamp(review.createdAt) }}</span>
+              </div>
+              <div class="field">
+                <label>Status</label>
+                <select
+                  class="dialog-input"
+                  [value]="review.status"
+                  [disabled]="savingId() !== null"
+                  (change)="changeStatus(review, $any($event.target).value)"
+                >
+                  @for (status of statuses; track status) {
+                    <option [value]="status">{{ status }}</option>
+                  }
+                </select>
+              </div>
+            </fieldset>
+          </div>
+        </app-dialog-shell>
+      }
+    </ng-container>
+  </nz-modal>
 </section>

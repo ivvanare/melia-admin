@@ -1,7 +1,11 @@
 import { Component, computed, inject, signal } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
+import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzModalModule } from 'ng-zorro-antd/modal';
 import { AdminApi, type AdminReview, type ReviewStatus } from '../../core/admin-api';
 import { AuthService } from '../../core/auth.service';
 import { DataTable, type DataTableColumn, type DataTableTagVariant } from '../../shared/data-table/data-table';
+import { DialogShell } from '../../shared/dialog-shell/dialog-shell';
 
 const PAGE_SIZE = 20;
 
@@ -40,13 +44,14 @@ function stamp(value: string): string {
  */
 @Component({
   selector: 'app-reviews',
-  imports: [DataTable],
+  imports: [DataTable, DialogShell, NzButtonModule, NzModalModule],
   templateUrl: './reviews.html',
   styleUrl: './reviews.css',
 })
 export class Reviews {
   private readonly api = inject(AdminApi);
   private readonly auth = inject(AuthService);
+  private readonly route = inject(ActivatedRoute);
 
   protected readonly rows = signal<readonly AdminReview[]>([]);
   protected readonly total = signal(0);
@@ -55,9 +60,10 @@ export class Reviews {
   protected readonly errorCode = signal<string | null>(null);
 
   protected readonly statusFilter = signal('');
-  protected readonly placeFilter = signal('');
-  protected readonly authorFilter = signal('');
+  protected readonly placeFilter = signal(this.route.snapshot.queryParamMap.get('placeId') ?? '');
+  protected readonly authorFilter = signal(this.route.snapshot.queryParamMap.get('authorId') ?? '');
   protected readonly statuses = STATUSES;
+  protected readonly detailTarget = signal<AdminReview | null>(null);
 
   /**
    * Catalogue lookups for the filters. A filter must not ask a person for a uuid: when the session
@@ -118,9 +124,17 @@ export class Reviews {
     if (this.canListPlaces()) {
       try {
         const page = await this.api.listAdminPlaces({ page: 1, limit: 50 });
-        this.placeOptions.set(
-          page.data.map((place) => ({ id: place.coPlace, label: place.title })),
-        );
+        const options = page.data.map((place) => ({ id: place.coPlace, label: place.title }));
+        const currentPlace = this.placeFilter();
+        if (currentPlace && !options.some((o) => o.id === currentPlace)) {
+          try {
+            const place = await this.api.getAdminPlace(currentPlace);
+            options.unshift({ id: place.coPlace, label: place.title });
+          } catch {
+            options.unshift({ id: currentPlace, label: currentPlace });
+          }
+        }
+        this.placeOptions.set(options);
       } catch {
         // No catalogue, no select: the filter falls back to the id.
         this.placeOptions.set([]);
@@ -181,6 +195,21 @@ export class Reviews {
     void this.load();
   }
 
+  protected openDetail(review: AdminReview): void {
+    this.detailTarget.set(review);
+  }
+
+  protected closeDetail(): void {
+    this.detailTarget.set(null);
+  }
+
+  protected starString(rating: number): string {
+    const clamped = Math.max(0, Math.min(5, Math.round(rating)));
+    return '★'.repeat(clamped) + '☆'.repeat(5 - clamped);
+  }
+
+  protected readonly formatStamp = stamp;
+
   /**
    * Writes one status and re-reads the page, so the row shows what the server confirmed.
    * An optimistic update would leave the table claiming a moderation that may have been refused.
@@ -188,18 +217,21 @@ export class Reviews {
   protected async changeStatus(
     review: AdminReview,
     status: string,
-    select: HTMLSelectElement,
+    select?: HTMLSelectElement,
   ): Promise<void> {
     if (this.savingId() !== null || status === review.status) return;
     this.savingId.set(review.coReview);
     this.errorCode.set(null);
     try {
       await this.api.setReviewStatus(review.coReview, status as ReviewStatus);
+      if (this.detailTarget()?.coReview === review.coReview) {
+        this.detailTarget.set({ ...review, status: status as ReviewStatus });
+      }
       await this.load();
     } catch (error) {
       // Nothing changed on the server, so the control must not keep claiming it did: a bound
       // value that did not move is invisible to change detection, so this resets the element.
-      select.value = review.status;
+      if (select) select.value = review.status;
       this.errorCode.set((error as { code?: string }).code ?? 'network_error');
     } finally {
       this.savingId.set(null);

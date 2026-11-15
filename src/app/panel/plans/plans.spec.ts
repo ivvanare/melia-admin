@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AdminApi, type AdminPlan } from '../../core/admin-api';
 import { Plans } from './plans';
 
@@ -33,6 +33,12 @@ describe('Plans', () => {
       imports: [Plans],
       providers: [{ provide: AdminApi, useValue: { listAdminPlans, setPlanStatus } }],
     });
+  });
+
+  afterEach(() => {
+    document.body
+      .querySelectorAll('.cdk-overlay-container, .ant-modal-root')
+      .forEach((node) => node.remove());
   });
 
   async function render(): Promise<{
@@ -88,5 +94,21 @@ describe('Plans', () => {
     fixture.detectChanges();
 
     expect(listAdminPlans.mock.calls.at(-1)?.[0]).toMatchObject({ status: 'INACTIVE', page: 1 });
+  });
+
+  it('opens the plan detail modal with complete overview', async () => {
+    const { element, fixture } = await render();
+
+    button(element, 'Details').click();
+    fixture.detectChanges();
+    await tick();
+    fixture.detectChanges();
+
+    expect(document.body.textContent).toContain('Plan overview');
+    expect(document.body.textContent).toContain('6 people');
+    expect(document.body.textContent).toContain('4 members');
+    expect(document.body.textContent).toContain('r1');
+    expect(document.body.textContent).toContain('u1');
+    expect(document.body.textContent).toContain('Suspending a plan hides it');
   });
 });
