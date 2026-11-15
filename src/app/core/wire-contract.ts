@@ -13,6 +13,8 @@ import type {
   PlacePhotoPlacement,
   PlaceSchedule,
   Role,
+  RoleInput,
+  RoleUpdate,
   UserSummary,
 } from './admin-api';
 import type { components } from './generated/api-types';
@@ -35,6 +37,8 @@ type Wire<HandWritten extends Generated, Generated> = HandWritten;
 
 export type UserSummaryMatchesTheWire = Wire<UserSummary, components['schemas']['UserSummary']>;
 export type RoleMatchesTheWire = Wire<Role, components['schemas']['Role']>;
+export type RoleInputMatchesTheWire = Wire<RoleInput, components['schemas']['RoleInput']>;
+export type RoleUpdateMatchesTheWire = Wire<RoleUpdate, components['schemas']['RoleUpdate']>;
 export type PermissionMatchesTheWire = Wire<Permission, components['schemas']['Permission']>;
 export type AuditEventMatchesTheWire = Wire<AuditEvent, components['schemas']['AuditEvent']>;
 export type AdminReviewMatchesTheWire = Wire<AdminReview, components['schemas']['Review']>;

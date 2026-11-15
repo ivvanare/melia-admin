@@ -4,9 +4,14 @@
       <h1 id="roles-title">Roles &amp; permissions</h1>
       <p>A user enters the panel because an active role grants <code>admin.access</code>, never because the record is "of type admin".</p>
     </div>
-    <button type="button" class="btn secondary" (click)="load()" [disabled]="loading()">
-      {{ loading() ? 'Refreshing…' : 'Refresh' }}
-    </button>
+    <div class="head-actions">
+      <button type="button" class="btn secondary" (click)="load()" [disabled]="loading()">
+        {{ loading() ? 'Refreshing…' : 'Refresh' }}
+      </button>
+      @if (canManage()) {
+        <button type="button" class="btn primary" (click)="openCreate()">New role</button>
+      }
+    </div>
   </header>
 
   @if (errorCode(); as code) {
@@ -40,6 +45,16 @@
             }
           </ul>
           <p class="count">{{ role.permissions.length }} of {{ permissions().length }} permissions</p>
+
+          @if (canManage()) {
+            <footer class="card-actions">
+              <button nz-button nzSize="small" type="button" (click)="openEdit(role)">Edit</button>
+              <button nz-button nzSize="small" type="button" (click)="openPermissions(role)">Permissions</button>
+              @if (role.name !== 'SUPERADMIN') {
+                <button nz-button nzSize="small" nzDanger type="button" (click)="openRetire(role)">Retire</button>
+              }
+            </footer>
+          }
         </article>
       }
     </div>
@@ -53,4 +68,243 @@
     [empty]="emptyCatalogue()"
   />
 
+  <!-- Create Role Modal -->
+  <nz-modal
+    [nzVisible]="createOpen()"
+    nzTitle="New role"
+    nzOkText="Create role"
+    nzCancelText="Cancel"
+    [nzOkLoading]="creating()"
+    [nzOkDisabled]="!createName().trim()"
+    nzWidth="540px"
+    (nzOnCancel)="closeCreate()"
+    (nzOnOk)="saveCreate()"
+  >
+    <ng-container *nzModalContent>
+      <app-dialog-shell
+        class="single-column"
+        lead="Define a role and choose its initial permissions."
+        [errorCode]="createErrorCode()"
+      >
+        <span slot="error-message">The role could not be created: </span>
+        <div slot="left" class="col">
+          <div class="field">
+            <label for="create-role-name">Name</label>
+            <input
+              id="create-role-name"
+              class="dialog-input"
+              type="text"
+              maxlength="60"
+              placeholder="e.g. MODERATOR"
+              [value]="createName()"
+              [disabled]="creating()"
+              (input)="createName.set($any($event.target).value)"
+            />
+            <p class="hint">1–60 characters. Must be unique among active roles.</p>
+          </div>
+
+          <div class="field">
+            <label for="create-role-desc">Description <span class="muted">(optional)</span></label>
+            <input
+              id="create-role-desc"
+              class="dialog-input"
+              type="text"
+              placeholder="What this role is for"
+              [value]="createDescription()"
+              [disabled]="creating()"
+              (input)="createDescription.set($any($event.target).value)"
+            />
+          </div>
+
+          <div class="field">
+            <label>Initial permissions</label>
+            <div class="permissions-picker">
+              @for (group of grouped(); track group.module) {
+                <div class="module-group">
+                  <h4>{{ group.module }}</h4>
+                  @for (permission of group.items; track permission.code) {
+                    <label class="check">
+                      <input
+                        type="checkbox"
+                        [checked]="isCreatePermissionChecked(permission.code)"
+                        [disabled]="creating()"
+                        (change)="toggleCreatePermission(permission.code)"
+                      />
+                      <span>
+                        <strong>{{ permission.code }}</strong>
+                        <span class="muted"> — {{ permission.name }}</span>
+                      </span>
+                    </label>
+                  }
+                </div>
+              }
+            </div>
+          </div>
+        </div>
+        <div slot="right" class="col"></div>
+      </app-dialog-shell>
+    </ng-container>
+  </nz-modal>
+
+  <!-- Edit Role Modal -->
+  <nz-modal
+    [nzVisible]="editOpen()"
+    [nzTitle]="'Edit ' + (editingRole()?.name ?? 'role')"
+    nzOkText="Save changes"
+    nzCancelText="Cancel"
+    [nzOkLoading]="savingEdit()"
+    nzWidth="480px"
+    (nzOnCancel)="closeEdit()"
+    (nzOnOk)="saveEdit()"
+  >
+    <ng-container *nzModalContent>
+      @if (editingRole(); as role) {
+        <app-dialog-shell
+          class="single-column mono-lead"
+          [lead]="role.id"
+          [errorCode]="editErrorCode()"
+        >
+          <span slot="error-message">The change was rejected: </span>
+          <div slot="left" class="col">
+            <div class="field">
+              <label for="edit-role-name">Name</label>
+              <input
+                id="edit-role-name"
+                class="dialog-input"
+                type="text"
+                maxlength="60"
+                [value]="editName()"
+                [disabled]="savingEdit() || role.name === 'SUPERADMIN'"
+                (input)="editName.set($any($event.target).value)"
+              />
+              @if (role.name === 'SUPERADMIN') {
+                <p class="hint">The system role name is protected and cannot be changed.</p>
+              }
+            </div>
+
+            <div class="field">
+              <label for="edit-role-desc">Description</label>
+              <input
+                id="edit-role-desc"
+                class="dialog-input"
+                type="text"
+                [value]="editDescription()"
+                [disabled]="savingEdit()"
+                (input)="editDescription.set($any($event.target).value)"
+              />
+            </div>
+
+            <div class="field">
+              <label for="edit-role-status">Status</label>
+              <select
+                id="edit-role-status"
+                class="dialog-input"
+                [value]="editStatus()"
+                [disabled]="savingEdit() || role.name === 'SUPERADMIN'"
+                (change)="editStatus.set($any($event.target).value)"
+              >
+                <option value="ACTIVE">ACTIVE</option>
+                <option value="INACTIVE">INACTIVE</option>
+              </select>
+              @if (role.name === 'SUPERADMIN') {
+                <p class="hint">SUPERADMIN cannot be deactivated.</p>
+              }
+            </div>
+          </div>
+          <div slot="right" class="col"></div>
+        </app-dialog-shell>
+      }
+    </ng-container>
+  </nz-modal>
+
+  <!-- Replace Role Permissions Modal -->
+  <nz-modal
+    [nzVisible]="permissionsOpen()"
+    [nzTitle]="'Permissions for ' + (permissionsRole()?.name ?? 'role')"
+    nzOkText="Save permissions"
+    nzCancelText="Cancel"
+    [nzOkLoading]="savingPermissions()"
+    nzWidth="540px"
+    (nzOnCancel)="closePermissions()"
+    (nzOnOk)="savePermissions()"
+  >
+    <ng-container *nzModalContent>
+      @if (permissionsRole(); as role) {
+        <app-dialog-shell
+          class="single-column mono-lead"
+          lead="The set replaces the current one: unchecking a permission removes it from this role."
+          [errorCode]="permissionsErrorCode()"
+        >
+          <span slot="error-message">The permission set was rejected: </span>
+          <div slot="left" class="col">
+            <div class="permissions-picker">
+              @for (group of grouped(); track group.module) {
+                <div class="module-group">
+                  <h4>{{ group.module }}</h4>
+                  @for (permission of group.items; track permission.code) {
+                    <label class="check">
+                      <input
+                        type="checkbox"
+                        [checked]="isDraftPermissionChecked(permission.code)"
+                        [disabled]="savingPermissions() || isDraftPermissionLocked(permission.code)"
+                        (change)="toggleDraftPermission(permission.code)"
+                      />
+                      <span>
+                        <strong>{{ permission.code }}</strong>
+                        <span class="muted"> — {{ permission.name }}</span>
+                        @if (isDraftPermissionLocked(permission.code)) {
+                          <span class="tag warn">required</span>
+                        }
+                      </span>
+                    </label>
+                  }
+                </div>
+              }
+            </div>
+          </div>
+          <div slot="right" class="col"></div>
+        </app-dialog-shell>
+      }
+    </ng-container>
+  </nz-modal>
+
+  <!-- Retire Role Modal -->
+  <nz-modal
+    [nzVisible]="retireOpen()"
+    nzTitle="Retire role"
+    nzOkText="Retire role"
+    nzOkDanger="true"
+    nzCancelText="Cancel"
+    [nzOkLoading]="retiring()"
+    nzWidth="440px"
+    (nzOnCancel)="closeRetire()"
+    (nzOnOk)="confirmRetire()"
+  >
+    <ng-container *nzModalContent>
+      @if (retireTarget(); as role) {
+        <div class="dialog">
+          <p>
+            Are you sure you want to retire role <strong>{{ role.name }}</strong>?
+          </p>
+          <p class="muted">
+            The role is retired logically and its capabilities stop granting on the next request.
+          </p>
+
+          @if (retireErrorCode() === 'role_in_use') {
+            <div class="alert" role="alert">
+              <span>Cannot retire: active users still hold this role. Reassign them first in the Users module.</span>
+            </div>
+          } @else if (retireErrorCode() === 'role_protected') {
+            <div class="alert" role="alert">
+              <span>This role is protected by the system and cannot be retired.</span>
+            </div>
+          } @else if (retireErrorCode(); as code) {
+            <div class="alert" role="alert">
+              <span>Could not retire role: <code>{{ code }}</code></span>
+            </div>
+          }
+        </div>
+      }
+    </ng-container>
+  </nz-modal>
 </section>

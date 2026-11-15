@@ -97,4 +97,74 @@ describe('AdminApi', () => {
     req.flush(null, { status: 204, statusText: 'No Content' });
     await expect(pending).resolves.toBeUndefined();
   });
+
+  it('posts a new role with its optional fields', async () => {
+    const pending = api.createRole({
+      name: 'CURATOR',
+      description: 'Curates content',
+      permissions: ['place.update'],
+    });
+    const req = http.expectOne(`${API}/admin/roles`);
+
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual({
+      name: 'CURATOR',
+      description: 'Curates content',
+      permissions: ['place.update'],
+    });
+
+    req.flush({
+      id: 'r-curator',
+      name: 'CURATOR',
+      description: 'Curates content',
+      status: 'ACTIVE',
+      permissions: ['place.update'],
+    });
+    const role = await pending;
+    expect(role.id).toBe('r-curator');
+    expect(role.name).toBe('CURATOR');
+  });
+
+  it('updates a role with PATCH', async () => {
+    const pending = api.updateRole('r-1', {
+      name: 'EDITOR_SENIOR',
+      status: 'INACTIVE',
+    });
+    const req = http.expectOne(`${API}/admin/roles/r-1`);
+
+    expect(req.request.method).toBe('PATCH');
+    expect(req.request.body).toEqual({
+      name: 'EDITOR_SENIOR',
+      status: 'INACTIVE',
+    });
+
+    req.flush({
+      id: 'r-1',
+      name: 'EDITOR_SENIOR',
+      description: null,
+      status: 'INACTIVE',
+      permissions: [],
+    });
+    const role = await pending;
+    expect(role.name).toBe('EDITOR_SENIOR');
+  });
+
+  it('retires a role with DELETE', async () => {
+    const pending = api.retireRole('r-1');
+    const req = http.expectOne(`${API}/admin/roles/r-1`);
+
+    expect(req.request.method).toBe('DELETE');
+    req.flush(null, { status: 204, statusText: 'No Content' });
+    await expect(pending).resolves.toBeUndefined();
+  });
+
+  it('replaces role permissions with PUT carrying codes', async () => {
+    const pending = api.replaceRolePermissions('r-1', ['place.update', 'review.moderate']);
+    const req = http.expectOne(`${API}/admin/roles/r-1/permissions`);
+
+    expect(req.request.method).toBe('PUT');
+    expect(req.request.body).toEqual({ codes: ['place.update', 'review.moderate'] });
+    req.flush(null, { status: 204, statusText: 'No Content' });
+    await expect(pending).resolves.toBeUndefined();
+  });
 });

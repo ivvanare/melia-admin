@@ -33,6 +33,18 @@ export interface Role {
   permissions: string[];
 }
 
+export interface RoleInput {
+  name: string;
+  description?: string | null;
+  permissions?: string[];
+}
+
+export interface RoleUpdate {
+  name?: string;
+  description?: string | null;
+  status?: 'ACTIVE' | 'INACTIVE';
+}
+
 /** A place's own lifecycle, as the backoffice writes it. */
 /** A stored photo. `url` is a path under the API origin, not an absolute one. */
 export interface PlacePhoto {
@@ -622,6 +634,40 @@ export class AdminApi {
       this.http.get<{ data: Role[] }>(`${this.baseUrl}/admin/roles`),
     );
     return body.data;
+  }
+
+  createRole(body: RoleInput): Promise<Role> {
+    return firstValueFrom(this.http.post<Role>(`${this.baseUrl}/admin/roles`, body));
+  }
+
+  getRole(coRole: string): Promise<Role> {
+    return firstValueFrom(
+      this.http.get<Role>(`${this.baseUrl}/admin/roles/${encodeURIComponent(coRole)}`),
+    );
+  }
+
+  updateRole(coRole: string, body: RoleUpdate): Promise<Role> {
+    return firstValueFrom(
+      this.http.patch<Role>(
+        `${this.baseUrl}/admin/roles/${encodeURIComponent(coRole)}`,
+        body,
+      ),
+    );
+  }
+
+  async retireRole(coRole: string): Promise<void> {
+    await firstValueFrom(
+      this.http.delete<void>(`${this.baseUrl}/admin/roles/${encodeURIComponent(coRole)}`),
+    );
+  }
+
+  async replaceRolePermissions(coRole: string, codes: string[]): Promise<void> {
+    await firstValueFrom(
+      this.http.put<void>(
+        `${this.baseUrl}/admin/roles/${encodeURIComponent(coRole)}/permissions`,
+        { codes },
+      ),
+    );
   }
 
   async listPermissions(): Promise<Permission[]> {
