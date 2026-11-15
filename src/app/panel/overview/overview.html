@@ -1,11 +1,17 @@
 <section class="overview" aria-labelledby="overview-title">
   <header class="pagehead">
     <div>
+      <p class="breadcrumbs">Panel / Live Performance</p>
       <h1 id="overview-title">Welcome back, {{ greetingName() }}</h1>
-      <p>Signed in as {{ auth.user()?.roles?.join(', ') || 'no role' }}. Everything below is live data.</p>
+      <p class="lead">Signed in as {{ auth.user()?.roles?.join(', ') || 'no role' }}. Everything below is live data.</p>
     </div>
-    <button type="button" class="btn secondary" (click)="load()" [disabled]="loading()">
-      {{ loading() ? 'Refreshing…' : 'Refresh' }}
+    <button type="button" class="btn-refresh" (click)="load()" [disabled]="loading()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true" [class.spin]="loading()">
+        <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M3 3v5h5M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M16 21h5v-5" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span>{{ loading() ? 'Refreshing…' : 'Refresh' }}</span>
     </button>
   </header>
 
@@ -14,13 +20,14 @@
       <p>
         The panel could not load its numbers: <code>{{ code }}</code>
       </p>
-      <button type="button" class="btn secondary" (click)="load()">Try again</button>
+      <button type="button" class="btn-alert" (click)="load()">Try again</button>
     </div>
   }
 
-  <div class="metrics">
+  <!-- Unified floating metrics card with vertical dividers -->
+  <div class="metrics-strip">
     @if (canManagePlaces()) {
-      <article class="metric">
+      <article class="metric-col">
         <div class="metric-top">
           <span class="label">Places</span>
           <span class="metric-icon" aria-hidden="true">
@@ -30,12 +37,15 @@
           </span>
         </div>
         <p class="value">{{ placesTotal() ?? '—' }}</p>
-        <a class="link" routerLink="/panel/places">Manage catalog</a>
+        <div class="metric-foot">
+          <span class="pill-accent">Catalog</span>
+          <a class="link" routerLink="/panel/places">Manage catalog</a>
+        </div>
       </article>
     }
 
     @if (canModerateReviews()) {
-      <article class="metric">
+      <article class="metric-col">
         <div class="metric-top">
           <span class="label">Reviews</span>
           <span class="metric-icon" aria-hidden="true">
@@ -45,12 +55,15 @@
           </span>
         </div>
         <p class="value">{{ reviewsTotal() ?? '—' }}</p>
-        <a class="link" routerLink="/panel/reviews">Moderate reviews</a>
+        <div class="metric-foot">
+          <span class="pill-accent">Feedback</span>
+          <a class="link" routerLink="/panel/reviews">Moderate reviews</a>
+        </div>
       </article>
     }
 
     @if (canModeratePlans()) {
-      <article class="metric">
+      <article class="metric-col">
         <div class="metric-top">
           <span class="label">Plans</span>
           <span class="metric-icon" aria-hidden="true">
@@ -60,12 +73,15 @@
           </span>
         </div>
         <p class="value">{{ plansTotal() ?? '—' }}</p>
-        <a class="link" routerLink="/panel/plans">Active plans</a>
+        <div class="metric-foot">
+          <span class="pill-soft">Shared</span>
+          <a class="link" routerLink="/panel/plans">Active plans</a>
+        </div>
       </article>
     }
 
     @if (canReadUsers()) {
-      <article class="metric">
+      <article class="metric-col">
         <div class="metric-top">
           <span class="label">Users</span>
           <span class="metric-icon" aria-hidden="true">
@@ -75,12 +91,15 @@
           </span>
         </div>
         <p class="value">{{ usersTotal() ?? '—' }}</p>
-        <a class="link" routerLink="/panel/users">Search and assign roles</a>
+        <div class="metric-foot">
+          <span class="pill-soft">Directory</span>
+          <a class="link" routerLink="/panel/users">Search and assign roles</a>
+        </div>
       </article>
     }
 
     @if (canManageRoles()) {
-      <article class="metric">
+      <article class="metric-col">
         <div class="metric-top">
           <span class="label">Roles</span>
           <span class="metric-icon" aria-hidden="true">
@@ -90,9 +109,13 @@
           </span>
         </div>
         <p class="value">{{ rolesTotal() ?? '—' }}</p>
-        <a class="link" routerLink="/panel/roles">See what each grants</a>
+        <div class="metric-foot">
+          <span class="pill-soft">Access</span>
+          <a class="link" routerLink="/panel/roles">See what each grants</a>
+        </div>
       </article>
-      <article class="metric">
+
+      <article class="metric-col">
         <div class="metric-top">
           <span class="label">Permissions</span>
           <span class="metric-icon" aria-hidden="true">
@@ -102,11 +125,14 @@
           </span>
         </div>
         <p class="value">{{ permissionsTotal() ?? '—' }}</p>
-        <a class="link" routerLink="/panel/roles">Read the catalogue</a>
+        <div class="metric-foot">
+          <span class="pill-soft">Matrix</span>
+          <a class="link" routerLink="/panel/roles">Read the catalogue</a>
+        </div>
       </article>
     }
 
-    <article class="metric">
+    <article class="metric-col">
       <div class="metric-top">
         <span class="label">Audit events</span>
         <span class="metric-icon" aria-hidden="true">
@@ -116,7 +142,10 @@
         </span>
       </div>
       <p class="value">{{ eventsTotal() ?? '—' }}</p>
-      <a class="link" routerLink="/panel/audit">Open the log</a>
+      <div class="metric-foot">
+        <span class="pill-soft">Security</span>
+        <a class="link" routerLink="/panel/audit">Open the log</a>
+      </div>
     </article>
   </div>
 
@@ -124,16 +153,12 @@
     <div class="col-main">
       @if (canModerateReviews()) {
         <section class="panel" aria-labelledby="reviews-title">
-          <header>
-            <div class="panel-head-title">
-              <span class="panel-icon" aria-hidden="true">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                  <path [attr.d]="icons.reviews" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-              </span>
+          <header class="panel-header">
+            <div>
               <h2 id="reviews-title">Recent customer reviews</h2>
+              <p class="panel-subtitle">Live feedback from visitors and patrons</p>
             </div>
-            <a class="link" routerLink="/panel/reviews">Moderate all</a>
+            <a class="pill-link" routerLink="/panel/reviews">Moderate all</a>
           </header>
 
           @if (loading()) {
@@ -141,9 +166,9 @@
           } @else if (!recentReviews().length) {
             <p class="empty">No customer reviews recorded yet.</p>
           } @else {
-            <ul class="preview-list">
+            <div class="preview-cards">
               @for (review of recentReviews(); track review.coReview) {
-                <li class="preview-item">
+                <div class="preview-item">
                   <div class="item-head">
                     <span class="stars" [title]="review.rating + ' stars'">{{ starRating(review.rating) }}</span>
                     <strong class="item-title">{{ review.place?.title || 'Unknown venue' }}</strong>
@@ -156,25 +181,21 @@
                     <span class="item-meta">By {{ review.author.name || 'Anonymous' }} · {{ formatDateTime(review.createdAt) }}</span>
                     <a class="link" [routerLink]="['/panel/reviews']" [queryParams]="{ placeId: review.coPlace }">Inspect</a>
                   </div>
-                </li>
+                </div>
               }
-            </ul>
+            </div>
           }
         </section>
       }
 
       @if (canManagePlaces()) {
         <section class="panel" aria-labelledby="venues-title">
-          <header>
-            <div class="panel-head-title">
-              <span class="panel-icon" aria-hidden="true">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                  <path [attr.d]="icons.places" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-              </span>
+          <header class="panel-header">
+            <div>
               <h2 id="venues-title">Registered venues</h2>
+              <p class="panel-subtitle">Curated locations and local directories</p>
             </div>
-            <a class="link" routerLink="/panel/places">View all places</a>
+            <a class="pill-link" routerLink="/panel/places">View all places</a>
           </header>
 
           @if (loading()) {
@@ -182,9 +203,9 @@
           } @else if (!recentPlaces().length) {
             <p class="empty">No venues recorded yet.</p>
           } @else {
-            <ul class="preview-list">
+            <div class="preview-cards">
               @for (place of recentPlaces(); track place.coPlace) {
-                <li class="preview-item">
+                <div class="preview-item">
                   <div class="item-head">
                     <strong class="item-title">{{ place.title }}</strong>
                     <span class="badge-cat">{{ place.category.name }}</span>
@@ -196,24 +217,20 @@
                     <span class="item-meta">{{ placeLocation(place) }} · <span class="rating-pill">{{ placeRating(place) }}</span></span>
                     <a class="link" routerLink="/panel/places">Manage</a>
                   </div>
-                </li>
+                </div>
               }
-            </ul>
+            </div>
           }
         </section>
       }
 
       <section class="panel" aria-labelledby="activity-title">
-        <header>
-          <div class="panel-head-title">
-            <span class="panel-icon" aria-hidden="true">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                <path [attr.d]="icons.audit" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </span>
+        <header class="panel-header">
+          <div>
             <h2 id="activity-title">Recent audit activity</h2>
+            <p class="panel-subtitle">Chronological ledger of operational security events</p>
           </div>
-          <a class="link" routerLink="/panel/audit">Full audit log</a>
+          <a class="pill-link" routerLink="/panel/audit">Full audit log</a>
         </header>
 
         @if (loading()) {
@@ -243,8 +260,11 @@
 
     <div class="col-side">
       <section class="panel session-card" aria-labelledby="session-title">
-        <header>
-          <h2 id="session-title">Active session</h2>
+        <header class="panel-header">
+          <div>
+            <h2 id="session-title">Active session</h2>
+            <p class="panel-subtitle">Current authenticated operator</p>
+          </div>
           <span class="live-dot" title="Authenticated session">Live</span>
         </header>
         <div class="session-body">
@@ -262,15 +282,17 @@
             <span class="perms-chip">{{ auth.permissions().length }} permissions granted</span>
           </div>
           <div class="session-footer">
-            <a class="link" routerLink="/panel/account">Account settings & email</a>
+            <a class="pill-btn-wide" routerLink="/panel/account">Account settings & email</a>
           </div>
         </div>
       </section>
 
       <section class="panel" aria-labelledby="modules-title">
-        <header>
-          <h2 id="modules-title">Available modules</h2>
-          <p class="hint">{{ modules().length }} accessible</p>
+        <header class="panel-header">
+          <div>
+            <h2 id="modules-title">Available modules</h2>
+            <p class="panel-subtitle">{{ modules().length }} accessible tools</p>
+          </div>
         </header>
         <div class="modules">
           @for (module of modules(); track module.path) {

@@ -10,9 +10,14 @@
   /* surfaces */
   --ink: #0b1220;
   --ink-2: #111c31;
-  --nav: #0f1a2b;
-  --nav-2: #16233a;
-  --canvas: #f5f7fa;
+  --nav: #f2f5f9;
+  --nav-2: #e9eef5;
+  --nav-item-color: #475569;
+  --nav-item-hover-bg: rgba(11, 18, 32, 0.05);
+  --nav-item-hover-color: #0b1220;
+  --nav-active-bg: #0b1220;
+  --nav-active-color: #ffffff;
+  --canvas: #f2f5f9;
   --surface: #ffffff;
   --surface-muted: #fcfdfe;
 
@@ -21,7 +26,8 @@
   --muted: #64748b;
 
   /* lines and accent */
-  --line: #e3e8ef;
+  --line: #e2e8f0;
+  --line-soft: #edf2f7;
   /* Melia's coral. `--accent` is the fill; `--accent-ink` is the only form allowed as
      text, because #FF5A36 on white is 3.10:1 and fails AA (measured, not assumed). */
   --accent: #ff5a36;
@@ -40,18 +46,20 @@
   --warn: #a16207;
   --danger: #b91c1c;
 
-  /* shape and depth */
-  --radius: 12px;
-  --radius-sm: 9px;
+  /* shape and depth - generous modern curves */
+  --radius-xl: 24px;
+  --radius-lg: 20px;
+  --radius: 16px;
+  --radius-sm: 10px;
   --radius-pill: 999px;
-  --shadow-sm: 0 1px 2px rgba(11, 18, 32, 0.06);
-  --shadow-lg: 0 34px 60px -46px rgba(11, 18, 32, 0.6);
+  --shadow-sm: 0 1px 3px rgba(11, 18, 32, 0.05), 0 1px 2px rgba(11, 18, 32, 0.03);
+  --shadow-md: 0 4px 14px -2px rgba(11, 18, 32, 0.06);
+  --shadow-lg: 0 34px 60px -46px rgba(11, 18, 32, 0.4);
 
   /* soft surfaces, separators and pills */
   --surface-2: #f8fafc;
-  --line-soft: #f0f3f8;
-  --pill-bg: #eef1f6;
-  --pill-ink: #5a6779;
+  --pill-bg: #eef2f6;
+  --pill-ink: #475569;
 
   /* state pills and alerts, so a theme swap never touches a component */
   --tag-ok-bg: #e9f5ee;
@@ -164,6 +172,139 @@ button {
 .tag.danger {
   background: var(--tag-danger-bg);
   color: var(--tag-danger-ink);
+}
+
+/* Shared status badges and pills matching modern aesthetic */
+.pill-accent {
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: var(--radius-pill);
+  padding: 2px 8px;
+  white-space: nowrap;
+}
+
+.pill-soft {
+  background: var(--pill-bg);
+  color: var(--pill-ink);
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: var(--radius-pill);
+  padding: 2px 8px;
+  white-space: nowrap;
+}
+
+.pill-link {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--slate);
+  border-radius: var(--radius-pill);
+  padding: 5px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.15s ease;
+}
+
+.pill-link:hover {
+  border-color: var(--accent);
+  color: var(--accent-ink);
+  background: var(--accent-soft);
+}
+
+.badge-active { background: #ecfdf5 !important; color: #065f46 !important; border-color: #a7f3d0 !important; }
+.badge-moderated { background: #fef3c7 !important; color: #92400e !important; border-color: #fde68a !important; }
+.badge-inactive { background: #f1f5f9 !important; color: #64748b !important; border-color: #cbd5e1 !important; }
+.badge-cat {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-radius: var(--radius-pill);
+  padding: 1px 7px;
+  white-space: nowrap;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--slate);
+}
+
+.stars {
+  color: #f59e0b;
+  font-size: 12px;
+  letter-spacing: 1px;
+  font-weight: 700;
+  flex: none;
+}
+
+.rating-pill {
+  color: var(--slate);
+  font-weight: 600;
+}
+
+.pill-btn-wide {
+  display: block;
+  text-align: center;
+  padding: 8px 16px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--slate);
+  font-size: 12.5px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.15s ease;
+}
+
+.pill-btn-wide:hover {
+  border-color: var(--accent);
+  color: var(--accent-ink);
+  background: var(--accent-soft);
+}
+
+.btn-alert {
+  border: 1px solid var(--alert-line);
+  background: #fff;
+  border-radius: var(--radius-pill);
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--alert-ink);
+  cursor: pointer;
+}
+
+.live-dot {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ok);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  border-radius: var(--radius-pill);
+  padding: 2px 8px;
+}
+
+.live-dot::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ok);
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 /* Shared primary/secondary buttons; screens add layout, not colour. */
@@ -510,17 +651,22 @@ button {
 
   --ink: #e6edf6;
   --ink-2: #0f1826;
-  --nav: #0a1220;
+  --nav: #0b1220;
   --nav-2: #142030;
-  --canvas: #0b1220;
-  --surface: #121c2b;
-  --surface-muted: #16202f;
+  --nav-item-color: #94a3b8;
+  --nav-item-hover-bg: rgba(255, 255, 255, 0.06);
+  --nav-item-hover-color: #ffffff;
+  --nav-active-bg: var(--accent);
+  --nav-active-color: #ffffff;
+  --canvas: #070c16;
+  --surface: #0f172a;
+  --surface-muted: #131d33;
 
   --slate: #b3c2d4;
   --muted: #93a4b8;
 
-  --line: #22304a;
-  --line-soft: rgba(255, 255, 255, 0.07);
+  --line: #1e293b;
+  --line-soft: rgba(255, 255, 255, 0.06);
   --surface-2: #18242f;
   --pill-bg: #1e2c40;
   --pill-ink: #9fb0c4;
