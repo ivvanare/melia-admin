@@ -255,6 +255,16 @@ export class Places {
   protected readonly deleting = signal(false);
   protected readonly deleteErrorCode = signal<string | null>(null);
 
+  // ---- menu modal ---------------------------------------------------------
+
+  protected readonly menuTarget = signal<AdminPlace | null>(null);
+  protected readonly menuModalOpen = signal(false);
+  protected readonly menuDraft = signal<readonly PlaceMenu[]>([]);
+  protected readonly menuLoading = signal(false);
+  protected readonly menuSaving = signal(false);
+  protected readonly menuErrorCode = signal<string | null>(null);
+  protected readonly menuErrors = signal<readonly string[]>([]);
+
   constructor() {
     void this.load();
     void this.loadCategories();
@@ -658,6 +668,107 @@ export class Places {
     }
   }
 
+  // ---- menu modal actions -------------------------------------------------
+
+  protected async openMenu(place: AdminPlace): Promise<void> {
+    this.menuTarget.set(place);
+    this.menuDraft.set([]);
+    this.menuErrors.set([]);
+    this.menuErrorCode.set(null);
+    this.menuModalOpen.set(true);
+    this.menuLoading.set(true);
+    try {
+      const detail = await this.api.getAdminPlace(place.coPlace);
+      this.menuTarget.set(detail);
+      this.menuDraft.set(detail.menus ?? []);
+    } catch (error) {
+      this.menuErrorCode.set(apiErrorCode(error));
+    } finally {
+      this.menuLoading.set(false);
+    }
+  }
+
+  protected closeMenu(): void {
+    this.menuModalOpen.set(false);
+    this.menuTarget.set(null);
+    this.menuDraft.set([]);
+    this.menuErrors.set([]);
+    this.menuErrorCode.set(null);
+  }
+
+  protected addMenuDraftSection(): void {
+    this.menuDraft.update((menus) => [...menus, { name: '', description: null, items: [] }]);
+  }
+
+  protected removeMenuDraftSection(index: number): void {
+    this.menuDraft.update((menus) => menus.filter((_, i) => i !== index));
+  }
+
+  protected patchMenuDraftSection(index: number, field: 'name' | 'description', value: string): void {
+    this.menuDraft.update((menus) =>
+      menus.map((menu, i) =>
+        i === index ? { ...menu, [field]: value === '' ? (field === 'description' ? null : '') : value } : menu,
+      ),
+    );
+  }
+
+  protected addMenuDraftItem(section: number): void {
+    this.menuDraft.update((menus) =>
+      menus.map((menu, i) =>
+        i === section
+          ? { ...menu, items: [...menu.items, { name: '', description: null, price: 0, currency: 'USD' }] }
+          : menu,
+      ),
+    );
+  }
+
+  protected removeMenuDraftItem(section: number, item: number): void {
+    this.menuDraft.update((menus) =>
+      menus.map((menu, i) =>
+        i === section ? { ...menu, items: menu.items.filter((_, j) => j !== item) } : menu,
+      ),
+    );
+  }
+
+  protected patchMenuDraftItem<K extends keyof PlaceMenuItem>(
+    section: number,
+    item: number,
+    field: K,
+    value: PlaceMenuItem[K],
+  ): void {
+    this.menuDraft.update((menus) =>
+      menus.map((menu, i) =>
+        i === section
+          ? {
+              ...menu,
+              items: menu.items.map((dish, j) => (j === item ? { ...dish, [field]: value } : dish)),
+            }
+          : menu,
+      ),
+    );
+  }
+
+  protected async saveMenu(): Promise<void> {
+    const target = this.menuTarget();
+    if (!target || this.menuSaving()) return;
+
+    const errors = validateMenus(this.menuDraft());
+    this.menuErrors.set(errors);
+    if (errors.length > 0) return;
+
+    this.menuSaving.set(true);
+    this.menuErrorCode.set(null);
+    try {
+      await this.api.replacePlaceMenu(target.coPlace, [...this.menuDraft()]);
+      await this.load();
+      this.closeMenu();
+    } catch (error) {
+      this.menuErrorCode.set(apiErrorCode(error));
+    } finally {
+      this.menuSaving.set(false);
+    }
+  }
+
   protected askDelete(place: AdminPlace): void {
     this.deleteErrorCode.set(null);
     this.deleteTarget.set(place);
@@ -702,6 +813,10 @@ export class Places {
 
   protected ownerLabel(place: AdminPlace): string {
     return place.coOwnerUser ?? 'curated by the platform';
+  }
+
+  protected placeLocation(place: AdminPlace): string {
+    return [place.region, place.country].filter(Boolean).join(', ') || place.country;
   }
 }
 

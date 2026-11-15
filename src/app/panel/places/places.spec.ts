@@ -686,4 +686,34 @@ describe('Places', () => {
     expect(document.body.textContent).toContain('validation_failed');
     expect(inDialog('#place-title').length).toBe(1);
   });
+
+  it('opens the dedicated Menu modal directly and saves the menu', async () => {
+    getAdminPlace.mockResolvedValue({
+      ...PLACES[0],
+      menus: [
+        { name: 'Desayuno', description: null, items: [{ name: 'Empanada', description: null, price: 2.5, currency: 'USD' }] },
+      ],
+    });
+    const { element, fixture } = await render();
+    buttonIn(element, 'Menu').click();
+    fixture.detectChanges();
+    await tick();
+    fixture.detectChanges();
+
+    expect(getAdminPlace).toHaveBeenCalledWith('pl-1');
+    expect(document.body.textContent).toContain('Menu — Melia Centro');
+    const sectionInput = inDialog<HTMLInputElement>('input[placeholder*="Section name"]')[0];
+    expect(sectionInput?.value).toBe('Desayuno');
+    const dishInput = inDialog<HTMLInputElement>('input[placeholder="Dish"]')[0];
+    expect(dishInput?.value).toBe('Empanada');
+
+    buttonIn(document.body, 'Save menu').click();
+    await tick();
+    await tick();
+    fixture.detectChanges();
+
+    expect(replacePlaceMenu).toHaveBeenCalledWith('pl-1', [
+      { name: 'Desayuno', description: null, items: [{ name: 'Empanada', description: null, price: 2.5, currency: 'USD' }] },
+    ]);
+  });
 });

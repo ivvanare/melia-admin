@@ -17,9 +17,7 @@ export type ModuleStatus = 'live' | 'soon' | 'mock';
 export type ModuleIcon =
   | 'home'
   | 'places'
-  | 'menus'
   | 'reviews'
-  | 'routes'
   | 'plans'
   | 'invitations'
   | 'users'
@@ -56,20 +54,12 @@ export const PANEL_GROUPS: readonly PanelGroup[] = [
       {
         path: 'places',
         label: 'Places',
-        description: 'Venue records, schedules and photos',
+        description: 'Venue records, schedules, menu and photos',
         icon: 'places',
         // An OWNER holds `place.update`, never `place.create` (S2): keying the
         // module on update is what lets an owner reach their venues at all.
         status: 'live',
         permission: 'place.update',
-      },
-      {
-        path: 'menus',
-        label: 'Menus',
-        description: 'Menus and their dishes',
-        icon: 'menus',
-        status: 'soon',
-        permission: 'menu.manage',
       },
       {
         path: 'reviews',
@@ -78,14 +68,6 @@ export const PANEL_GROUPS: readonly PanelGroup[] = [
         icon: 'reviews',
         status: 'live',
         permission: 'review.moderate',
-      },
-      {
-        path: 'routes',
-        label: 'Routes',
-        description: 'Routes built by users',
-        icon: 'routes',
-        status: 'soon',
-        permission: 'route.manage',
       },
     ],
   },
@@ -162,10 +144,7 @@ export const ICON_PATHS: Record<ModuleIcon, string> = {
   home: 'M4 11.5 12 4l8 7.5V20H4z',
   places:
     'M12 21s7-5.4 7-11a7 7 0 1 0-14 0c0 5.6 7 11 7 11Z M12 12.4a2.4 2.4 0 1 0 0-4.8 2.4 2.4 0 0 0 0 4.8Z',
-  menus: 'M4 6h16M4 12h11M4 18h7',
   reviews: 'm12 4 2.4 5 5.6.8-4 3.9 1 5.5-5-2.7-5 2.7 1-5.5-4-3.9 5.6-.8Z',
-  routes:
-    'M6 18.2a2.4 2.4 0 1 0 0-4.8 2.4 2.4 0 0 0 0 4.8Z M18 8.6a2.4 2.4 0 1 0 0-4.8 2.4 2.4 0 0 0 0 4.8Z M8.2 15.4 15.8 8.6',
   users:
     'M9 11.7a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4Z M3.5 19.5c.6-3 2.8-4.6 5.5-4.6s4.9 1.6 5.5 4.6 M16 5.4a3 3 0 0 1 0 5.7 M17.5 15.2c1.8.6 3 2.1 3.3 4.3',
   roles:

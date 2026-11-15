@@ -1,6 +1,7 @@
 <section class="screen">
   <!-- Declared before the table so the actions input sees the reference. -->
   <ng-template #rowActions let-row>
+    <button nz-button nzSize="small" type="button" (click)="openMenu(row)">Menu</button>
     <button nz-button nzSize="small" type="button" (click)="openEditor(row)">Edit record</button>
   </ng-template>
 
@@ -124,7 +125,10 @@
 
             <footer>
               <span class="when">{{ updatedLabel(place) }}</span>
-              <button class="btn ghost" type="button" (click)="openEditor(place)">Edit record</button>
+              <div class="card-actions">
+                <button class="btn ghost" type="button" (click)="openMenu(place)">Menu</button>
+                <button class="btn ghost" type="button" (click)="openEditor(place)">Edit record</button>
+              </div>
             </footer>
           </article>
         }
@@ -605,6 +609,101 @@
           </p>
         </div>
         <div slot="right" class="col"></div>
+      </app-dialog-shell>
+    </ng-container>
+  </nz-modal>
+  <nz-modal
+    [nzVisible]="menuModalOpen()"
+    [nzTitle]="'Menu — ' + (menuTarget()?.title ?? '')"
+    nzOkText="Save menu"
+    nzCancelText="Cancel"
+    [nzOkLoading]="menuSaving()"
+    nzWidth="720px"
+    (nzOnCancel)="closeMenu()"
+    (nzOnOk)="saveMenu()"
+  >
+    <ng-container *nzModalContent>
+      <app-dialog-shell [lead]="menuTarget()?.coPlace ?? ''" [errors]="menuErrors()" [errorCode]="menuErrorCode()">
+        <span slot="error-message">The menu was not saved: </span>
+        <div slot="left" class="col">
+          <p class="hint">
+            The whole menu is saved together. A section without dishes is valid.
+          </p>
+
+          @if (menuLoading()) {
+            <p class="hint">Loading menu…</p>
+          } @else {
+            <div class="menus">
+              @for (menu of menuDraft(); track $index; let s = $index) {
+                <div class="menu-section">
+                  <div class="menu-head">
+                    <input
+                      class="dialog-input"
+                      type="text"
+                      placeholder="Section name, e.g. Cena"
+                      [value]="menu.name"
+                      [disabled]="menuSaving()"
+                      (input)="patchMenuDraftSection(s, 'name', $any($event.target).value)"
+                    />
+                    <button class="btn secondary" type="button" [disabled]="menuSaving()" (click)="removeMenuDraftSection(s)">
+                      Remove
+                    </button>
+                  </div>
+
+                  @for (dish of menu.items; track $index; let d = $index) {
+                    <div class="dish">
+                      <input
+                        class="dialog-input"
+                        type="text"
+                        placeholder="Dish"
+                        [value]="dish.name"
+                        [disabled]="menuSaving()"
+                        (input)="patchMenuDraftItem(s, d, 'name', $any($event.target).value)"
+                      />
+                      <input
+                        class="dialog-input mono"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        [value]="dish.price"
+                        [disabled]="menuSaving()"
+                        (input)="patchMenuDraftItem(s, d, 'price', +$any($event.target).value)"
+                      />
+                      <select
+                        class="dialog-input mono"
+                        [value]="dish.currency"
+                        [disabled]="menuSaving()"
+                        (change)="patchMenuDraftItem(s, d, 'currency', $any($event.target).value)"
+                      >
+                        <option value="USD">USD</option>
+                        <option value="VES">VES</option>
+                        <option value="COP">COP</option>
+                      </select>
+                      <button class="btn ghost" type="button" [disabled]="menuSaving()" (click)="removeMenuDraftItem(s, d)">✕</button>
+                    </div>
+                  }
+
+                  <button class="btn secondary" type="button" [disabled]="menuSaving()" (click)="addMenuDraftItem(s)">Add dish</button>
+                </div>
+              }
+            </div>
+
+            <button class="btn secondary" type="button" [disabled]="menuSaving()" (click)="addMenuDraftSection()">Add section</button>
+          }
+        </div>
+        <div slot="right" class="col">
+          <p class="hint">
+            Menus hang directly from the venue. Each section groups dishes with price and currency.
+          </p>
+          @if (menuTarget(); as target) {
+            <div class="menu-target-info">
+              <span class="label">Venue:</span>
+              <strong>{{ target.title }}</strong>
+              <span class="mono muted">{{ target.coPlace }}</span>
+              <span class="muted">{{ placeLocation(target) }}</span>
+            </div>
+          }
+        </div>
       </app-dialog-shell>
     </ng-container>
   </nz-modal>

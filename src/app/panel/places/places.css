@@ -184,6 +184,12 @@
   background: var(--surface-2);
 }
 
+.card-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .place .when {
   font-size: 11px;
   color: var(--muted);
@@ -295,6 +301,18 @@
 
 .dish {
   grid-template-columns: 1fr 84px 84px auto;
+}
+
+.menu-target-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  background: var(--surface-muted);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  margin-top: 10px;
 }
 
 /* Photos: a strip of previews with the type as a pill, and two upload buttons. */

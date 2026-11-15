@@ -88,18 +88,8 @@ export const routes: Routes = [
       },
       {
         path: 'menus',
-        title: 'Menus — melZone panel',
-        loadComponent: () => import('./panel/soon/soon').then((m) => m.Soon),
-        data: {
-          title: 'Menus',
-          description: 'Menus hang from a venue, and dishes hang from a menu.',
-          permission: 'menu.manage',
-          bullets: [
-            'Several menus per venue: breakfast, lunch, dinner, wine',
-            'Dishes with price and description, ordered inside their menu',
-            'Publish or hide a menu without touching the venue',
-          ],
-        },
+        pathMatch: 'full',
+        redirectTo: 'places',
       },
       {
         path: 'reviews',
@@ -108,22 +98,14 @@ export const routes: Routes = [
       },
       {
         path: 'routes',
-        title: 'Routes — melZone panel',
-        loadComponent: () => import('./panel/soon/soon').then((m) => m.Soon),
-        data: {
-          title: 'Routes',
-          description: 'Ordered visit lists built by the app’s users.',
-          permission: 'route.manage',
-          bullets: [
-            'Read a route with its ordered stops',
-            'Spot routes that point at a closed or suspended venue',
-            'No editing: the route belongs to its author',
-          ],
-        },
+        pathMatch: 'full',
+        redirectTo: 'plans',
       },
     ],
   },
   // The panel absorbed the old top-level URLs; keep them working as redirects.
   { path: 'account', pathMatch: 'full', redirectTo: 'panel/account' },
+  { path: 'menus', pathMatch: 'full', redirectTo: 'panel/places' },
+  { path: 'routes', pathMatch: 'full', redirectTo: 'panel/plans' },
   { path: '**', redirectTo: '' },
 ];
