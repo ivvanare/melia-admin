@@ -25,8 +25,7 @@ export type ModuleIcon =
   | 'users'
   | 'roles'
   | 'audit'
-  | 'account'
-  | 'demo';
+  | 'account';
 
 export interface PanelModule {
   path: string;
@@ -142,14 +141,6 @@ export const PANEL_GROUPS: readonly PanelGroup[] = [
         status: 'live',
         permission: 'admin.access',
       },
-      {
-        path: 'faqs',
-        label: 'FAQs demo',
-        description: 'ng-crud-maker over a memory transport',
-        icon: 'demo',
-        status: 'live',
-        permission: 'admin.access',
-      },
     ],
   },
 ];
@@ -184,5 +175,4 @@ export const ICON_PATHS: Record<ModuleIcon, string> = {
     'M12 20.4a8.4 8.4 0 1 0 0-16.8 8.4 8.4 0 0 0 0 16.8Z M12 12.6a2.6 2.6 0 1 0 0-5.2 2.6 2.6 0 0 0 0 5.2Z M7.4 18.4c.8-2.2 2.5-3.4 4.6-3.4s3.8 1.2 4.6 3.4',
   plans: 'M5 5h14v14H5z M9 9h6M9 13h6M9 17h3',
   invitations: 'M4 6h16v12H4z M4 7l8 6 8-6',
-  demo: 'M4 7h16v10H4z M8 20h8',
 };

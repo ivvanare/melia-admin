@@ -82,12 +82,6 @@ export const routes: Routes = [
         loadComponent: () => import('./account/account').then((m) => m.Account),
       },
       {
-        // The existing ng-crud-maker demo, now inside the panel's navigation.
-        path: 'faqs',
-        title: 'FAQs demo — melZone panel',
-        loadComponent: () => import('./demo/faqs-demo').then((m) => m.FaqsDemo),
-      },
-      {
         path: 'places',
         title: 'Places — melZone panel',
         loadComponent: () => import('./panel/places/places').then((m) => m.Places),
@@ -131,6 +125,5 @@ export const routes: Routes = [
   },
   // The panel absorbed the old top-level URLs; keep them working as redirects.
   { path: 'account', pathMatch: 'full', redirectTo: 'panel/account' },
-  { path: 'faqs', pathMatch: 'full', redirectTo: 'panel/faqs' },
   { path: '**', redirectTo: '' },
 ];
